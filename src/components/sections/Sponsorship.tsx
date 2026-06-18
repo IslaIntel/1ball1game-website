@@ -81,12 +81,8 @@ const TIERS: Tier[] = [
   },
 ];
 
-function mailtoFor(tier: Tier) {
-  const subject = encodeURIComponent(`Sponsorship inquiry — ${tier.name} (${tier.price})`);
-  const body = encodeURIComponent(
-    `Hi Kate,\n\nWe're interested in the ${tier.name} (${tier.price}) sponsorship for the 1 Ball 1 Game Foundation. Please send next steps.\n\nThank you,`,
-  );
-  return `mailto:kate@1ball1game.org?subject=${subject}&body=${body}`;
+function sponsorHref(tier: Tier) {
+  return `#contact?tier=${tier.id}`;
 }
 
 function Check() {
@@ -148,7 +144,7 @@ function TierCard({ tier, featured }: { tier: Tier; featured?: boolean }) {
             </div>
             <p className="mt-3 text-cloud/60">{tier.tagline}</p>
             <a
-              href={mailtoFor(tier)}
+              href={sponsorHref(tier)}
               onClick={cta}
               className="mt-8 inline-flex items-center gap-3 rounded-full bg-cloud px-7 py-3.5 text-sm font-semibold text-ink transition-transform hover:-translate-y-0.5"
             >
@@ -199,7 +195,7 @@ function TierCard({ tier, featured }: { tier: Tier; featured?: boolean }) {
       </ul>
 
       <a
-        href={mailtoFor(tier)}
+        href={sponsorHref(tier)}
         onClick={cta}
         className="mt-7 inline-flex items-center justify-center gap-2 rounded-full border border-ink/20 px-5 py-3 text-sm font-semibold text-ink transition-colors duration-300 group-hover:bg-ink group-hover:text-paper"
       >

@@ -47,18 +47,6 @@ export function Footer() {
                 </a>
               ))}
             </nav>
-            <div className="flex flex-col gap-3">
-              <span className="eyebrow mb-1 text-ink/40">Contact</span>
-              <span className="text-ink/70">Kate Leib</span>
-              <span className="text-sm text-ink/50">Executive Director</span>
-              <a
-                href="mailto:kate@1ball1game.org"
-                onClick={() => track(EVENTS.CONTACT_EMAIL_CLICK, { location: "footer" })}
-                className="link-underline text-ink/70 hover:text-ink"
-              >
-                kate@1ball1game.org
-              </a>
-            </div>
           </div>
         </div>
 

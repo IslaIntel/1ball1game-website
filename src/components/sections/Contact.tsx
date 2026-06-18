@@ -4,7 +4,6 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { TrackedSection } from "@/components/analytics/TrackedSection";
 import { Reveal } from "@/components/ui/Reveal";
-import { BallGlyph } from "@/components/ui/BallGlyph";
 import { EVENTS, track } from "@/lib/analytics";
 
 const LEVELS = ["Presenting · $25,000", "Gold · $15,000", "Silver · $10,000", "Bronze · $5,000", "Not sure yet"];
@@ -16,11 +15,6 @@ export function Contact() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     track(EVENTS.CONTACT_FORM_SUBMIT, { level: form.level, has_message: form.message.length > 0 });
-    const subject = encodeURIComponent(`Sponsorship inquiry — ${form.level}`);
-    const body = encodeURIComponent(
-      `Name: ${form.name}\nOrganization: ${form.org}\nInterested level: ${form.level}\n\n${form.message}`,
-    );
-    window.location.href = `mailto:kate@1ball1game.org?subject=${subject}&body=${body}`;
     setSent(true);
   };
 
@@ -49,24 +43,9 @@ export function Contact() {
             </h2>
           </Reveal>
           <Reveal delay={0.1}>
-            <div className="mt-10 rounded-3xl border border-cloud/10 bg-cloud/[0.04] p-7">
-              <div className="flex items-center gap-4">
-                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-royal">
-                  <BallGlyph className="animate-spin-slow h-8 w-8 text-cloud" />
-                </div>
-                <div>
-                  <div className="font-display text-xl font-semibold">Kate Leib</div>
-                  <div className="text-sm text-cloud/60">Executive Director</div>
-                </div>
-              </div>
-              <a
-                href="mailto:kate@1ball1game.org"
-                onClick={() => track(EVENTS.CONTACT_EMAIL_CLICK, { location: "contact_card" })}
-                className="link-underline mt-6 inline-block text-lg font-medium text-cloud"
-              >
-                kate@1ball1game.org
-              </a>
-            </div>
+            <p className="mt-6 max-w-md text-lg leading-relaxed text-cloud/60">
+              Sponsorship inquiries welcome — share your details and we&apos;ll follow up.
+            </p>
           </Reveal>
         </div>
 
@@ -130,7 +109,7 @@ export function Contact() {
                 whileTap={{ scale: 0.98 }}
                 className="mt-7 inline-flex w-full items-center justify-center gap-3 rounded-full bg-magenta px-7 py-4 text-sm font-semibold text-cloud transition-colors hover:bg-magenta-deep sm:w-auto"
               >
-                {sent ? "Opening your email…" : "Send sponsorship inquiry"}
+                {sent ? "Inquiry received — thank you" : "Send sponsorship inquiry"}
                 <span className="h-1.5 w-1.5 rounded-full bg-cloud" />
               </motion.button>
             </form>
