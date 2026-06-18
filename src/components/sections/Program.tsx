@@ -62,8 +62,8 @@ export function Program() {
         <Reveal delay={0.1}>
           <div className="relative mt-12 aspect-[16/8] overflow-hidden rounded-[2rem] border border-ink/10 shadow-[0_30px_60px_-30px_rgba(10,17,56,0.4)]">
             <Image
-              src="/images/program-practice-coed.png"
-              alt="Teen athletes running a soccer drill on a school field"
+              src="/images/program-practice-k2.png"
+              alt="K–2 students running a soccer drill on a school field"
               fill
               sizes="100vw"
               className="object-cover"

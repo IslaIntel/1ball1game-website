@@ -25,7 +25,7 @@ const PRESENTING: Tier = {
   benefits: [
     'Exclusive "1 Ball 1 Game Presented By [Sponsor]" naming rights',
     "Sole recognition at the top sponsorship level",
-    "Front-chest, exclusive logo on all jerseys & uniforms (~1,800 participants)",
+    "Front-chest, exclusive logo on all jerseys & uniforms",
     "Premier logo on all marketing, website, registration & enrollment emails",
     "Dedicated sponsor spotlight email to participating families",
     "Dedicated social media campaign highlighting your support",

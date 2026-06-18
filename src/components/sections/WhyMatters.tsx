@@ -22,8 +22,8 @@ export function WhyMatters() {
           <Reveal>
             <div className="relative aspect-square overflow-hidden rounded-[2.5rem] rounded-tl-[7rem] border border-ink/10 shadow-[0_30px_60px_-30px_rgba(10,17,56,0.4)]">
               <Image
-                src="/images/impact-classroom-teens.png"
-                alt="A teacher's aide supporting teenage students in a bright classroom"
+                src="/images/impact-classroom-k2.png"
+                alt="A teacher supporting kindergarten through 2nd grade students in a classroom"
                 fill
                 sizes="(max-width: 1024px) 100vw, 40vw"
                 className="object-cover"

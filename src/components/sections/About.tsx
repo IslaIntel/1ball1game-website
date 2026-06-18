@@ -17,7 +17,7 @@ export function About() {
         <div className="lg:col-span-7">
           <Reveal delay={0.05}>
             <h2 className="font-display text-[clamp(2rem,4.2vw,3.6rem)] font-semibold leading-[1.05] text-ink">
-              Keep every kid in the game — and every dollar in the neighborhood.
+              Keep every kid in the game — and dollars in the schools.
             </h2>
           </Reveal>
           <Reveal delay={0.1}>
@@ -53,8 +53,8 @@ export function About() {
           <Reveal delay={0.1}>
             <div className="relative aspect-[4/5] overflow-hidden rounded-[2.5rem] rounded-bl-[7rem] border border-ink/10 shadow-[0_30px_60px_-30px_rgba(10,17,56,0.4)]">
               <Image
-                src="/images/community-team-coed.png"
-                alt="A team of teenage soccer players huddled together with hands stacked in unity"
+                src="/images/community-team-k2.png"
+                alt="A K–2 youth soccer team huddled together with hands stacked in unity"
                 fill
                 sizes="(max-width: 1024px) 100vw, 40vw"
                 className="object-cover"

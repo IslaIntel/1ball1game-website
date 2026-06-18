@@ -86,9 +86,8 @@ export function Hero() {
             className="mt-8 max-w-xl text-lg leading-relaxed text-ink/70"
           >
             We create access, opportunity, and community through youth soccer —
-            funding programming for nearly 1,800 kids while returning the
-            majority of every registration fee directly to participating school
-            PTAs.
+            funding programming while returning the majority of every
+            registration fee directly to participating school PTAs.
           </motion.p>
 
           <motion.div variants={item} className="mt-10 flex flex-wrap items-center gap-4">
@@ -110,7 +109,6 @@ export function Hero() {
             className="mt-12 flex flex-wrap items-center gap-x-10 gap-y-4 border-t border-ink/10 pt-6"
           >
             {[
-              ["~1,800", "young athletes"],
               ["75%", "back to PTAs"],
               ["100%", "local impact"],
             ].map(([stat, label]) => (
@@ -135,8 +133,8 @@ export function Hero() {
             <div className="relative aspect-[4/5] overflow-hidden rounded-[2.5rem] rounded-tr-[7rem] border border-ink/10 shadow-[0_40px_80px_-30px_rgba(10,17,56,0.45)]">
               <motion.div style={{ y: imgY }} className="absolute inset-0 -top-16 bottom-0">
                 <Image
-                  src="/images/hero-soccer-coed.png"
-                  alt="Teen soccer players competing on the field at golden hour"
+                  src="/images/hero-soccer-k2.png"
+                  alt="Kindergarten through 2nd grade children playing youth soccer"
                   fill
                   priority
                   sizes="(max-width: 1024px) 100vw, 40vw"

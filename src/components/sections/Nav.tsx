@@ -11,6 +11,7 @@ const LINKS = [
   { label: "The Impact", href: "#impact" },
   { label: "Program", href: "#program" },
   { label: "Sponsor", href: "#sponsorship" },
+  { label: "Contact", href: "#contact" },
 ];
 
 export function Nav() {
@@ -70,7 +71,16 @@ export function Nav() {
         </nav>
 
         <div className="flex items-center gap-3">
-          <div className="hidden sm:block">
+          <div className="hidden items-center gap-2 sm:flex">
+            <CTAButton
+              href="#contact"
+              marker="nav_contact"
+              location="nav"
+              variant="outline"
+              className="!px-5 !py-2.5 !text-[0.8rem]"
+            >
+              Contact Us
+            </CTAButton>
             <CTAButton
               href="#sponsorship"
               marker="nav_sponsor"
@@ -128,7 +138,16 @@ export function Nav() {
                 {link.label}
               </a>
             ))}
-            <div className="pt-4">
+            <div className="grid grid-cols-1 gap-3 pt-4 sm:grid-cols-2">
+              <CTAButton
+                href="#contact"
+                marker="nav_contact_mobile"
+                location="nav_mobile"
+                variant="outline"
+                className="w-full"
+              >
+                Contact Us
+              </CTAButton>
               <CTAButton
                 href="#sponsorship"
                 marker="nav_sponsor_mobile"
