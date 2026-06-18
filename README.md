@@ -1,5 +1,7 @@
 # 1 Ball 1 Game Foundation — Landing Page
 
+**Repository:** [IslaIntel/1ball1game-website](https://github.com/IslaIntel/1ball1game-website)
+
 A production-grade marketing site for the 1 Ball 1 Game Foundation: youth soccer
 that returns **75% of every registration fee** directly to participating school
 PTAs. Built with an editorial-athletic design system and instrumented end-to-end
@@ -30,7 +32,7 @@ This repo includes an [`amplify.yml`](amplify.yml) build spec and [`.nvmrc`](.nv
 ### 1. Connect the repository
 
 1. Open [AWS Amplify Console](https://console.aws.amazon.com/amplify/) → **Create new app** → **Host web app**.
-2. Connect your Git provider and select this repository.
+2. Connect your Git provider and select **`IslaIntel/1ball1game-website`**.
 3. Amplify should auto-detect **Next.js - SSR**. Confirm the build spec uses `amplify.yml`.
 
 ### 2. Environment variables
