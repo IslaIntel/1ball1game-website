@@ -38,7 +38,7 @@ export function WhyPartner() {
             </Reveal>
             <Reveal delay={0.1}>
               <p className="mt-6 text-lg leading-relaxed text-ink/70">
-                By becoming a sponsor, your organization makes a visible,
+                By partnering with us, your organization makes a visible,
                 meaningful difference during a critical funding period.
               </p>
             </Reveal>

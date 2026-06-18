@@ -19,11 +19,6 @@ export const EVENTS = {
   // Scroll depth milestones
   SCROLL_DEPTH: "engagement:scroll_depth",
 
-  // Sponsorship interactions
-  SPONSOR_TIER_VIEW: "sponsorship:tier_view",
-  SPONSOR_TIER_SELECT: "sponsorship:tier_select",
-  SPONSOR_TIER_CTA: "sponsorship:tier_cta_click",
-
   // Contact intent
   CONTACT_EMAIL_CLICK: "contact:email_click",
   CONTACT_FORM_SUBMIT: "contact:form_submit",

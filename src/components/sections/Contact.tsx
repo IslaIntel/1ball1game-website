@@ -72,7 +72,7 @@ export function Contact() {
           <Reveal delay={0.1}>
             <p className="mt-6 max-w-md text-lg leading-relaxed text-cloud/60">
               The 1 Ball 1 Game Foundation serves kindergarten through 2nd grade
-              students. Reach out about schools, sponsorship, or getting involved.
+              students. Reach out about schools, partnerships, or getting involved.
             </p>
           </Reveal>
           <Reveal delay={0.15}>

@@ -91,8 +91,8 @@ export function Hero() {
           </motion.p>
 
           <motion.div variants={item} className="mt-10 flex flex-wrap items-center gap-4">
-            <CTAButton href="#sponsorship" marker="hero_primary" location="hero">
-              Become a Sponsor
+            <CTAButton href="#partner" marker="hero_primary" location="hero">
+              Partner With Us
             </CTAButton>
             <CTAButton
               href="#impact"

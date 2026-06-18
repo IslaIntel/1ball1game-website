@@ -10,7 +10,7 @@ const LINKS = [
   { label: "The Mission", href: "#about" },
   { label: "The Impact", href: "#impact" },
   { label: "Program", href: "#program" },
-  { label: "Sponsor", href: "#sponsorship" },
+  { label: "Partner", href: "#partner" },
   { label: "Contact", href: "#contact" },
 ];
 
@@ -82,13 +82,13 @@ export function Nav() {
               Contact Us
             </CTAButton>
             <CTAButton
-              href="#sponsorship"
-              marker="nav_sponsor"
+              href="#partner"
+              marker="nav_partner"
               location="nav"
               variant="solid"
               className="!px-5 !py-2.5 !text-[0.8rem]"
             >
-              Become a Sponsor
+              Partner With Us
             </CTAButton>
           </div>
           <button
@@ -149,12 +149,12 @@ export function Nav() {
                 Contact Us
               </CTAButton>
               <CTAButton
-                href="#sponsorship"
-                marker="nav_sponsor_mobile"
+                href="#partner"
+                marker="nav_partner_mobile"
                 location="nav_mobile"
                 className="w-full"
               >
-                Become a Sponsor
+                Partner With Us
               </CTAButton>
             </div>
           </motion.nav>

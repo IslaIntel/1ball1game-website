@@ -8,7 +8,7 @@ const LINKS = [
   { label: "The Mission", href: "#about" },
   { label: "The Impact", href: "#impact" },
   { label: "Program", href: "#program" },
-  { label: "Sponsor", href: "#sponsorship" },
+  { label: "Partner", href: "#partner" },
   { label: "Contact", href: "#contact" },
 ];
 

@@ -52,7 +52,7 @@ export function WhyMatters() {
             <p className="mt-6 max-w-xl text-lg leading-relaxed text-ink/70">
               At a time when public schools face a projected $28
               million budget shortfall, schools are preparing for significant
-              reductions. Your sponsorship helps them continue building strong,
+              reductions. Your partnership helps schools continue building strong,
               supportive environments for students — inside and outside the
               classroom.
             </p>
