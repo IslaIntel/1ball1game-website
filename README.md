@@ -1,36 +1,109 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 1 Ball 1 Game Foundation — Landing Page
 
-## Getting Started
+A production-grade marketing site for the 1 Ball 1 Game Foundation: youth soccer
+that returns **75% of every registration fee** directly to participating school
+PTAs. Built with an editorial-athletic design system and instrumented end-to-end
+with PostHog analytics.
 
-First, run the development server:
+## Stack
+
+- **Next.js 15** (App Router) + **React 19** + **TypeScript**
+- **Tailwind CSS v4** for the design system
+- **Framer Motion** for scroll-triggered and load animations
+- **PostHog** for product analytics
+- **AWS Amplify Hosting** (SSR / WEB_COMPUTE) for deployment
+
+## Getting started
 
 ```bash
+npm install
+cp .env.example .env.local   # add your PostHog keys (optional)
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Visit http://localhost:3000.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Deploy to AWS Amplify
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+This repo includes an [`amplify.yml`](amplify.yml) build spec and [`.nvmrc`](.nvmrc) (Node 20) for Amplify Hosting compute (Next.js SSR).
 
-## Learn More
+### 1. Connect the repository
 
-To learn more about Next.js, take a look at the following resources:
+1. Open [AWS Amplify Console](https://console.aws.amazon.com/amplify/) → **Create new app** → **Host web app**.
+2. Connect your Git provider and select this repository.
+3. Amplify should auto-detect **Next.js - SSR**. Confirm the build spec uses `amplify.yml`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### 2. Environment variables
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+In Amplify → **App settings** → **Environment variables**, add:
 
-## Deploy on Vercel
+| Variable | Required | Description |
+| -------- | -------- | ----------- |
+| `NEXT_PUBLIC_POSTHOG_KEY` | No | PostHog project API key |
+| `NEXT_PUBLIC_POSTHOG_HOST` | No | Defaults to `https://us.i.posthog.com` |
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+These are written to `.env.production` during the build via `amplify.yml`.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### 3. Deploy
+
+Push to `main` — Amplify builds with `npm ci` and `npm run build`, then deploys the `.next` output.
+
+### Local build check
+
+```bash
+nvm use
+npm ci
+npm run build
+```
+
+## Design system
+
+Pulled directly from the 1B1G logo:
+
+| Token        | Value     | Use                          |
+| ------------ | --------- | ---------------------------- |
+| `--ink`      | `#0a1138` | Primary text / dark sections |
+| `--royal`    | `#1d2bac` | Brand blue                   |
+| `--magenta`  | `#e2269d` | Accent / calls to action     |
+| `--azure`    | `#3099d3` | Secondary                    |
+| `--paper`    | `#f4eedf` | Warm cream background        |
+
+- **Display:** Fraunces (expressive serif, optical sizing)
+- **Body:** Archivo (athletic grotesque)
+- **Meta / labels:** JetBrains Mono
+
+## Analytics markers
+
+Every meaningful interaction is tracked. Event names live in
+[`src/lib/analytics.ts`](src/lib/analytics.ts):
+
+| Event                       | Fired when                                        |
+| --------------------------- | ------------------------------------------------- |
+| `pageview` / `pageleave`    | Built-in PostHog page lifecycle                   |
+| `section:view`              | A section scrolls into view (once each)           |
+| `engagement:scroll_depth`   | 25 / 50 / 75 / 100% scroll milestones             |
+| `nav:link_click`            | Navigation / footer link clicks                   |
+| `nav:logo_click`            | Logo clicked                                       |
+| `cta:click`                 | Any primary CTA (with `marker` + `location`)      |
+| `sponsorship:tier_view`     | A sponsorship tier becomes visible                |
+| `sponsorship:tier_select`   | A tier card is clicked                            |
+| `sponsorship:tier_cta_click`| A tier "sponsor" button is clicked                |
+| `impact:counter_complete`   | The 75% counter finishes animating                |
+| `contact:email_click`       | An email link is clicked                          |
+| `contact:form_submit`       | The sponsorship inquiry form is submitted         |
+
+Analytics no-op gracefully when no PostHog key is configured, so local
+development never breaks.
+
+## Project structure
+
+```
+src/
+  app/                  layout, global styles, page composition
+  components/
+    analytics/          PostHog provider + section view tracking
+    sections/           Nav, Hero, Marquee, About, Impact, WhyMatters,
+                        Program, WhyPartner, Sponsorship, Contact, Footer
+    ui/                 Reveal, AnimatedNumber, CTAButton, BallGlyph
+  lib/analytics.ts      event registry + safe track() helper
+```
