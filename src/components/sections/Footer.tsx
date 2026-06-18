@@ -56,7 +56,7 @@ export function Footer() {
           </p>
           <div className="flex items-center gap-2 text-sm text-ink/50">
             <BallGlyph className="h-4 w-4 text-magenta" />
-            <span>Fairfax County, Virginia</span>
+            <span>Youth soccer · Schools first</span>
           </div>
         </div>
       </div>

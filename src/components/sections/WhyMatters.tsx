@@ -14,7 +14,7 @@ export function WhyMatters() {
   return (
     <TrackedSection
       id="why"
-      name="Why This Matters — FCPS Shortfall"
+      name="Why This Matters — School Funding"
       className="relative mx-auto max-w-7xl scroll-mt-28 px-5 py-24 sm:px-8 lg:py-32"
     >
       <div className="grid grid-cols-1 items-center gap-14 lg:grid-cols-12 lg:gap-12">
@@ -43,14 +43,14 @@ export function WhyMatters() {
                 <AnimatedNumber value={28} prefix="$" suffix="M" />
               </span>
               <span className="pb-3 text-lg font-medium text-ink/60">
-                projected FCPS budget shortfall
+                projected school budget shortfall
               </span>
             </div>
           </Reveal>
 
           <Reveal delay={0.1}>
             <p className="mt-6 max-w-xl text-lg leading-relaxed text-ink/70">
-              At a time when Fairfax County Public Schools faces a projected $28
+              At a time when public schools face a projected $28
               million budget shortfall, schools are preparing for significant
               reductions. Your sponsorship helps them continue building strong,
               supportive environments for students — inside and outside the

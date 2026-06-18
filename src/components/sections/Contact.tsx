@@ -6,7 +6,7 @@ import { TrackedSection } from "@/components/analytics/TrackedSection";
 import { Reveal } from "@/components/ui/Reveal";
 import { EVENTS, track } from "@/lib/analytics";
 
-const CONTACT_EMAIL = "contact@1ball1game.org";
+const CONTACT_EMAIL = "info@1ball1game.org";
 
 type FormState = {
   name: string;

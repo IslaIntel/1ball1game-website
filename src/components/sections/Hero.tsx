@@ -49,7 +49,7 @@ export function Hero() {
           <motion.div variants={item} className="mb-6 flex items-center gap-3">
             <span className="h-px w-10 bg-magenta" />
             <span className="eyebrow text-ink/60">
-              1 Ball 1 Game Foundation · Fairfax County, VA
+              1 Ball 1 Game Foundation
             </span>
           </motion.div>
 

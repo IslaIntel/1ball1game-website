@@ -17,7 +17,7 @@ const USES = [
   },
   {
     title: "Student needs",
-    body: "Support school initiatives and the students and families who need them most.",
+    body: "Support school initiatives for the students and families who need them most.",
   },
 ];
 
