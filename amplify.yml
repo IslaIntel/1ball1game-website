@@ -9,6 +9,7 @@ frontend:
       commands:
         # Amplify SSR: inject NEXT_PUBLIC_* vars into the build (PostHog, etc.)
         - env | grep -e NEXT_PUBLIC_ >> .env.production || true
+        - env | grep -e CONTACT_WEBHOOK_URL >> .env.production || true
         - npm run build
   artifacts:
     baseDirectory: .next

@@ -26,27 +26,51 @@ const EMPTY_FORM: FormState = {
 
 export function Contact() {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
-  const [sent, setSent] = useState(false);
+  const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
+  const [errorMessage, setErrorMessage] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setStatus("submitting");
+    setErrorMessage("");
+
     track(EVENTS.CONTACT_FORM_SUBMIT, {
       has_school: form.school.length > 0,
       has_phone: form.phone.length > 0,
       has_message: form.message.length > 0,
     });
 
-    const subject = encodeURIComponent("1 Ball 1 Game Foundation — Contact inquiry");
-    const body = encodeURIComponent(
-      `Name: ${form.name}\nSchool: ${form.school}\nPhone: ${form.phone}\nEmail: ${form.email}\n\nMessage:\n${form.message}`,
-    );
+    try {
+      const response = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
 
-    window.location.href = `mailto:${CONTACT_EMAIL}?subject=${subject}&body=${body}`;
-    setSent(true);
+      if (!response.ok) {
+        const data = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(data?.error ?? "Unable to send your message.");
+      }
+
+      setStatus("success");
+      setForm(EMPTY_FORM);
+    } catch (error) {
+      setStatus("error");
+      setErrorMessage(
+        error instanceof Error ? error.message : "Unable to send your message. Please try again.",
+      );
+    }
   };
 
   const field =
     "w-full rounded-xl border border-cloud/15 bg-cloud/[0.04] px-4 py-3 text-cloud placeholder:text-cloud/40 outline-none transition-colors focus:border-magenta";
+
+  const buttonLabel =
+    status === "submitting"
+      ? "Sending…"
+      : status === "success"
+        ? "Message sent — thank you"
+        : "Contact us";
 
   return (
     <TrackedSection
@@ -100,6 +124,7 @@ export function Contact() {
                   <input
                     id="contact-name"
                     required
+                    disabled={status === "submitting"}
                     value={form.name}
                     onChange={(e) => setForm({ ...form, name: e.target.value })}
                     className={field}
@@ -114,6 +139,7 @@ export function Contact() {
                   <input
                     id="contact-school"
                     required
+                    disabled={status === "submitting"}
                     value={form.school}
                     onChange={(e) => setForm({ ...form, school: e.target.value })}
                     className={field}
@@ -131,6 +157,7 @@ export function Contact() {
                     id="contact-phone"
                     required
                     type="tel"
+                    disabled={status === "submitting"}
                     value={form.phone}
                     onChange={(e) => setForm({ ...form, phone: e.target.value })}
                     className={field}
@@ -146,6 +173,7 @@ export function Contact() {
                     id="contact-email"
                     required
                     type="email"
+                    disabled={status === "submitting"}
                     value={form.email}
                     onChange={(e) => setForm({ ...form, email: e.target.value })}
                     className={field}
@@ -163,6 +191,7 @@ export function Contact() {
                   id="contact-message"
                   required
                   rows={4}
+                  disabled={status === "submitting"}
                   value={form.message}
                   onChange={(e) => setForm({ ...form, message: e.target.value })}
                   className={`${field} resize-none`}
@@ -170,13 +199,26 @@ export function Contact() {
                 />
               </div>
 
+              {status === "error" && (
+                <p className="mt-5 text-sm text-sky" role="alert">
+                  {errorMessage}
+                </p>
+              )}
+
+              {status === "success" && (
+                <p className="mt-5 text-sm text-sky" role="status">
+                  Thanks for reaching out. We&apos;ll be in touch soon.
+                </p>
+              )}
+
               <motion.button
                 type="submit"
-                whileHover={{ y: -2 }}
-                whileTap={{ scale: 0.98 }}
-                className="mt-7 inline-flex w-full items-center justify-center gap-3 rounded-full bg-magenta px-7 py-4 text-sm font-semibold text-cloud transition-colors hover:bg-magenta-deep sm:w-auto"
+                disabled={status === "submitting"}
+                whileHover={status === "submitting" ? undefined : { y: -2 }}
+                whileTap={status === "submitting" ? undefined : { scale: 0.98 }}
+                className="mt-7 inline-flex w-full items-center justify-center gap-3 rounded-full bg-magenta px-7 py-4 text-sm font-semibold text-cloud transition-colors hover:bg-magenta-deep disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
               >
-                {sent ? "Opening your email…" : "Contact us"}
+                {buttonLabel}
                 <span className="h-1.5 w-1.5 rounded-full bg-cloud" />
               </motion.button>
             </form>
