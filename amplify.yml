@@ -7,7 +7,8 @@ frontend:
         - npm ci
     build:
       commands:
-        # Amplify SSR: inject NEXT_PUBLIC_* vars into the build (PostHog, etc.)
+        # Seed production env from repo defaults, then merge Amplify console vars
+        - cp .env.example .env.production
         - env | grep -e NEXT_PUBLIC_ >> .env.production || true
         - env | grep -e CONTACT_WEBHOOK_URL >> .env.production || true
         - npm run build
