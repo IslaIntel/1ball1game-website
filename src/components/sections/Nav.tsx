@@ -70,7 +70,7 @@ export function Nav() {
           ))}
         </nav>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <div className="hidden items-center gap-2 sm:flex">
             <CTAButton
               href="#contact"
@@ -89,6 +89,17 @@ export function Nav() {
               className="!px-5 !py-2.5 !text-[0.8rem]"
             >
               Partner With Us
+            </CTAButton>
+          </div>
+          <div className="sm:hidden">
+            <CTAButton
+              href="#contact"
+              marker="nav_contact_mobile_header"
+              location="nav_mobile_header"
+              variant="solid"
+              className="!px-4 !py-2 !text-xs"
+            >
+              Contact Us
             </CTAButton>
           </div>
           <button
