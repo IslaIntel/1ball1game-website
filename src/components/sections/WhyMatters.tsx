@@ -50,7 +50,7 @@ export function WhyMatters() {
 
           <Reveal delay={0.1}>
             <p className="mt-6 max-w-xl text-lg leading-relaxed text-ink/70">
-              At a time when public schools face a projected $28
+              At a time when Fairfax County Public Schools face a projected $28
               million budget shortfall, schools are preparing for significant
               reductions. Your partnership helps schools continue building strong,
               supportive environments for students — inside and outside the
