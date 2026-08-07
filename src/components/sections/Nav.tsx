@@ -91,7 +91,7 @@ export function Nav() {
               Partner With Us
             </CTAButton>
             <CTAButton
-              href="https://register.1ball1game.org/"
+              href="/register"
               marker="nav_register"
               location="nav"
               variant="outline"
@@ -177,7 +177,7 @@ export function Nav() {
                 Partner With Us
               </CTAButton>
               <CTAButton
-                href="https://register.1ball1game.org/"
+                href="/register"
                 marker="nav_register_mobile"
                 location="nav_mobile"
                 variant="outline"

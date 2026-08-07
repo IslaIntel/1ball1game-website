@@ -102,7 +102,7 @@ export function Hero() {
               See the impact
             </CTAButton>
             <CTAButton
-              href="https://register.1ball1game.org/"
+              href="/register"
               marker="hero_register"
               location="hero"
               variant="outline"

@@ -11,6 +11,7 @@ frontend:
         - cp .env.example .env.production
         - env | grep -e NEXT_PUBLIC_ >> .env.production || true
         - env | grep -e CONTACT_WEBHOOK_URL >> .env.production || true
+        - env | grep -e REGISTER_WEBHOOK_URL >> .env.production || true
         - npm run build
   artifacts:
     baseDirectory: .next

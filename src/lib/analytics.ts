@@ -23,6 +23,9 @@ export const EVENTS = {
   CONTACT_EMAIL_CLICK: "contact:email_click",
   CONTACT_FORM_SUBMIT: "contact:form_submit",
 
+  // Registration
+  REGISTER_FORM_SUBMIT: "register:form_submit",
+
   // Stat / impact engagement
   IMPACT_COUNTER_COMPLETE: "impact:counter_complete",
 } as const;
