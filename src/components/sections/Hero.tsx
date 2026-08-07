@@ -4,7 +4,6 @@ import Image from "next/image";
 import { useRef } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { CTAButton } from "@/components/ui/CTAButton";
-import { BallGlyph } from "@/components/ui/BallGlyph";
 
 const container = {
   hidden: {},
@@ -102,6 +101,14 @@ export function Hero() {
             >
               See the impact
             </CTAButton>
+            <CTAButton
+              href="https://register.1ball1game.org/"
+              marker="hero_register"
+              location="hero"
+              variant="outline"
+            >
+              Register Now
+            </CTAButton>
           </motion.div>
 
           <motion.div
@@ -143,18 +150,6 @@ export function Hero() {
               </motion.div>
               <div className="absolute inset-0 bg-gradient-to-t from-ink/40 via-transparent to-transparent" />
             </div>
-
-            {/* Floating ball */}
-            <motion.div
-              className="animate-float absolute -left-6 top-10 hidden sm:block"
-              initial={{ opacity: 0, rotate: -40 }}
-              animate={{ opacity: 1, rotate: 0 }}
-              transition={{ delay: 0.7, duration: 0.8 }}
-            >
-              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-royal shadow-xl">
-                <BallGlyph className="animate-spin-slow h-11 w-11 text-cloud" />
-              </div>
-            </motion.div>
 
             {/* Floating 75% card */}
             <motion.div
