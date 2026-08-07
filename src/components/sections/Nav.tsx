@@ -90,6 +90,15 @@ export function Nav() {
             >
               Partner With Us
             </CTAButton>
+            <CTAButton
+              href="https://register.1ball1game.org/"
+              marker="nav_register"
+              location="nav"
+              variant="outline"
+              className="!px-5 !py-2.5 !text-[0.8rem]"
+            >
+              Register Now
+            </CTAButton>
           </div>
           <div className="sm:hidden">
             <CTAButton
@@ -166,6 +175,15 @@ export function Nav() {
                 className="w-full"
               >
                 Partner With Us
+              </CTAButton>
+              <CTAButton
+                href="https://register.1ball1game.org/"
+                marker="nav_register_mobile"
+                location="nav_mobile"
+                variant="outline"
+                className="w-full sm:col-span-2"
+              >
+                Register Now
               </CTAButton>
             </div>
           </motion.nav>
