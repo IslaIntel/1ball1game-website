@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   FEE_CENTS,
+  MAX_PLAYERS,
   isVolunteering,
   type ParentInfo,
   type PlayerInfo,
@@ -75,6 +76,12 @@ export async function POST(request: Request) {
   }
 
   const playerCount = players.length;
+  if (playerCount > MAX_PLAYERS) {
+    return NextResponse.json(
+      { error: `You can register up to ${MAX_PLAYERS} players at a time.` },
+      { status: 400 },
+    );
+  }
   const totalCents = playerCount * FEE_CENTS;
   const submittedAt = new Date().toISOString();
 

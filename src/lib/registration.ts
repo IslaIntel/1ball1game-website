@@ -1,4 +1,5 @@
 export const FEE_CENTS = 19900;
+export const MAX_PLAYERS = 6;
 
 export const SCHOOLS = [
   "Chesterbrook Elementary",
@@ -309,6 +310,9 @@ export function validateStep(
   }
 
   if (step === 1) {
+    if (players.length > MAX_PLAYERS) {
+      errors.players = `You can register up to ${MAX_PLAYERS} players at a time.`;
+    }
     players.forEach((player, i) => {
       if (!player.firstName.trim())
         errors[`players.${i}.firstName`] = "Enter the player’s first name.";

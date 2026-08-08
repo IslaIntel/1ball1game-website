@@ -10,6 +10,7 @@ import {
   emptyVolunteer,
   emptyWaivers,
   FEE_CENTS,
+  MAX_PLAYERS,
   formatUsd,
   GENDERS,
   GRADES,
@@ -284,9 +285,14 @@ export function RegistrationForm() {
             {step === 1 && (
               <PlayersStep
                 players={players}
+                maxPlayers={MAX_PLAYERS}
                 errors={errors}
                 onChange={updatePlayer}
-                onAdd={() => setPlayers((p) => [...p, emptyPlayer()])}
+                onAdd={() =>
+                  setPlayers((p) =>
+                    p.length >= MAX_PLAYERS ? p : [...p, emptyPlayer()],
+                  )
+                }
                 onRemove={(i) =>
                   setPlayers((p) => (p.length === 1 ? p : p.filter((_, idx) => idx !== i)))
                 }
@@ -550,12 +556,14 @@ function ParentStep({
 
 function PlayersStep({
   players,
+  maxPlayers,
   errors,
   onChange,
   onAdd,
   onRemove,
 }: {
   players: PlayerInfo[];
+  maxPlayers: number;
   errors: FieldErrors;
   onChange: <K extends keyof PlayerInfo>(
     index: number,
@@ -724,16 +732,22 @@ function PlayersStep({
           </div>
         );
       })}
-      <button
-        type="button"
-        onClick={onAdd}
-        className="inline-flex items-center gap-2 rounded-full border border-ink/20 px-5 py-2.5 text-sm font-semibold text-ink transition-colors hover:border-magenta hover:text-magenta"
-      >
-        <span aria-hidden>＋</span> Add another player
-      </button>
+      {players.length < maxPlayers ? (
+        <button
+          type="button"
+          onClick={onAdd}
+          className="inline-flex items-center gap-2 rounded-full border border-ink/20 px-5 py-2.5 text-sm font-semibold text-ink transition-colors hover:border-magenta hover:text-magenta"
+        >
+          <span aria-hidden>＋</span> Add another player
+        </button>
+      ) : (
+        <p className="text-sm font-medium text-ink/60">
+          Maximum of {maxPlayers} players per registration.
+        </p>
+      )}
       <p className="text-sm text-ink/50">
-        Players are grouped primarily by school and grade to strengthen friendships
-        and community.
+        Register up to {maxPlayers} siblings on one form. Players are grouped
+        primarily by school and grade to strengthen friendships and community.
       </p>
     </section>
   );
