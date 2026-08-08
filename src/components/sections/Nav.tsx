@@ -73,6 +73,15 @@ export function Nav() {
         <div className="flex items-center gap-2 sm:gap-3">
           <div className="hidden items-center gap-2 sm:flex">
             <CTAButton
+              href="/register"
+              marker="nav_register"
+              location="nav"
+              variant="solid"
+              className="!px-5 !py-2.5 !text-[0.8rem]"
+            >
+              Register Now
+            </CTAButton>
+            <CTAButton
               href="#contact"
               marker="nav_contact"
               location="nav"
@@ -85,30 +94,21 @@ export function Nav() {
               href="#partner"
               marker="nav_partner"
               location="nav"
-              variant="solid"
+              variant="outline"
               className="!px-5 !py-2.5 !text-[0.8rem]"
             >
               Partner With Us
             </CTAButton>
-            <CTAButton
-              href="/register"
-              marker="nav_register"
-              location="nav"
-              variant="outline"
-              className="!px-5 !py-2.5 !text-[0.8rem]"
-            >
-              Register Now
-            </CTAButton>
           </div>
           <div className="sm:hidden">
             <CTAButton
-              href="#contact"
-              marker="nav_contact_mobile_header"
+              href="/register"
+              marker="nav_register_mobile_header"
               location="nav_mobile_header"
               variant="solid"
               className="!px-4 !py-2 !text-xs"
             >
-              Contact Us
+              Register Now
             </CTAButton>
           </div>
           <button
@@ -160,6 +160,15 @@ export function Nav() {
             ))}
             <div className="grid grid-cols-1 gap-3 pt-4 sm:grid-cols-2">
               <CTAButton
+                href="/register"
+                marker="nav_register_mobile"
+                location="nav_mobile"
+                variant="solid"
+                className="w-full sm:col-span-2"
+              >
+                Register Now
+              </CTAButton>
+              <CTAButton
                 href="#contact"
                 marker="nav_contact_mobile"
                 location="nav_mobile"
@@ -172,18 +181,10 @@ export function Nav() {
                 href="#partner"
                 marker="nav_partner_mobile"
                 location="nav_mobile"
+                variant="outline"
                 className="w-full"
               >
                 Partner With Us
-              </CTAButton>
-              <CTAButton
-                href="/register"
-                marker="nav_register_mobile"
-                location="nav_mobile"
-                variant="outline"
-                className="w-full sm:col-span-2"
-              >
-                Register Now
               </CTAButton>
             </div>
           </motion.nav>
