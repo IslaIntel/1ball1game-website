@@ -902,7 +902,7 @@ function VolunteerStep({
         </p>
       </div>
       <Field
-        label="Would you like to help support the kids?"
+        label="Would you like to volunteer to be a coach or assistant coach?"
         id="volunteer-role"
         required
         error={errors["volunteer.role"]}

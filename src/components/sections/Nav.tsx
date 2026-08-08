@@ -39,21 +39,48 @@ export function Nav() {
             : "mt-0 border border-transparent"
         }`}
       >
-        <a
-          href="#top"
-          onClick={() => track(EVENTS.NAV_LOGO_CLICK)}
-          className="relative flex items-center"
-          aria-label="1 Ball 1 Game Foundation — home"
-        >
-          <Image
-            src="/images/logo.svg"
-            alt="1 Ball 1 Game"
-            width={64}
-            height={62}
-            priority
-            className="h-11 w-auto"
+        <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+          <a
+            href="#top"
+            onClick={() => track(EVENTS.NAV_LOGO_CLICK)}
+            className="relative flex shrink-0 items-center"
+            aria-label="1 Ball 1 Game Foundation — home"
+          >
+            <Image
+              src="/images/logo.svg"
+              alt="1 Ball 1 Game"
+              width={64}
+              height={62}
+              priority
+              className="h-11 w-auto"
+            />
+          </a>
+          <div
+            className="hidden h-9 w-px shrink-0 bg-ink/15 sm:block"
+            aria-hidden
           />
-        </a>
+          <div className="hidden min-w-0 items-center gap-2.5 sm:flex">
+            <span className="max-w-[5.5rem] text-[0.62rem] font-semibold uppercase leading-tight tracking-[0.14em] text-ink/45">
+              In partnership with
+            </span>
+            <Image
+              src="/images/surf-nation-logo.png"
+              alt="Surf Nation"
+              width={40}
+              height={40}
+              className="h-9 w-9 shrink-0 object-contain"
+            />
+          </div>
+          <div className="flex shrink-0 items-center sm:hidden">
+            <Image
+              src="/images/surf-nation-logo.png"
+              alt="Surf Nation"
+              width={32}
+              height={32}
+              className="h-8 w-8 object-contain"
+            />
+          </div>
+        </div>
 
         <nav className="hidden items-center gap-8 md:flex">
           {LINKS.map((link) => (
