@@ -31,10 +31,17 @@ export const RELATIONSHIPS = ["Parent", "Legal Guardian", "Other"] as const;
 export const VOLUNTEER_ROLES = [
   "Yes, Head Coach",
   "Yes, Assistant Coach",
-  "Yes, Team Parent / Administrator",
-  "Yes, Field Setup & Equipment Helper",
   "No, not at this time",
 ] as const;
+
+/** Display labels shown in the volunteer dropdown (stored value stays in VOLUNTEER_ROLES). */
+export const VOLUNTEER_ROLE_LABELS: Record<(typeof VOLUNTEER_ROLES)[number], string> = {
+  "Yes, Head Coach":
+    "Yes, Head Coach — 50% registration refund if selected for the role",
+  "Yes, Assistant Coach":
+    "Yes, Assistant Coach — 20% registration refund if selected for the role",
+  "No, not at this time": "No, not at this time",
+};
 
 export const ADULT_SHIRT_SIZES = [
   "Adult S",
@@ -240,7 +247,7 @@ export const WAIVERS: WaiverDoc[] = [
       "I acknowledge and agree to abide by the Zero-Tolerance Code of Conduct and accept the termination terms.",
     sections: [
       {
-        heading: "Legal Text Overview:",
+        heading: "Why this matters:",
         body: "The 1 Ball 1 Game Foundation is established purely for the positive, recreational, and instructional development of Kindergarten through 2nd Grade children. To protect the safety, emotional well-being, and positive environment of our participants and volunteer staff, 1B1G enforces a strict Zero-Tolerance Policy regarding sideline misconduct.",
       },
       {
@@ -260,7 +267,7 @@ export const WAIVERS: WaiverDoc[] = [
       "I acknowledge the fundraising financial policy and agree that all fees are strictly non-refundable.",
     sections: [
       {
-        heading: "Legal Text Overview:",
+        heading: "How your registration supports the program:",
         body: "I understand and agree that the 1 Ball 1 Game Foundation (1B1G) acts as a fundraising processing partner for the School PTA Soccer Club, and that 1B1G’s involvement is strictly limited to providing complimentary soccer coaching modules, curriculum guides, and equipment to the parent volunteers selected by the PTA. I acknowledge that all funds collected are committed immediately to the foundation’s general fundraising and operational oversight pools.",
       },
       {
@@ -283,6 +290,19 @@ export function isVolunteering(role: string) {
   return Boolean(role) && role !== "No, not at this time";
 }
 
+export function phoneDigits(value: string) {
+  return value.replace(/\D/g, "");
+}
+
+export function isValidPhone(value: string) {
+  return phoneDigits(value).length >= 10;
+}
+
+export function isValidEmail(value: string) {
+  const trimmed = value.trim();
+  return trimmed.includes("@") && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
+}
+
 export type FieldErrors = Record<string, string>;
 
 export function validateStep(
@@ -299,10 +319,21 @@ export function validateStep(
       errors["parent.lastName"] = "Enter the parent/guardian’s last name.";
     if (!parent.relationship)
       errors["parent.relationship"] = "Choose the relationship to the player.";
-    if (!parent.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(parent.email))
-      errors["parent.email"] = "Enter an email address.";
+    if (!parent.email.trim() || !isValidEmail(parent.email))
+      errors["parent.email"] = "Enter a valid email address with an @ symbol.";
     if (!parent.phone.trim())
       errors["parent.phone"] = "Enter a primary phone number.";
+    else if (!isValidPhone(parent.phone))
+      errors["parent.phone"] = "Enter a phone number with at least 10 digits.";
+    if (parent.secondaryPhone.trim() && !isValidPhone(parent.secondaryPhone))
+      errors["parent.secondaryPhone"] =
+        "Enter a phone number with at least 10 digits.";
+    if (
+      parent.secondaryEmail.trim() &&
+      !isValidEmail(parent.secondaryEmail)
+    )
+      errors["parent.secondaryEmail"] =
+        "Enter a valid email address with an @ symbol.";
     if (!parent.street.trim()) errors["parent.street"] = "Enter a street address.";
     if (!parent.city.trim()) errors["parent.city"] = "Enter a city.";
     if (!parent.state.trim()) errors["parent.state"] = "Enter a state.";
@@ -335,6 +366,9 @@ export function validateStep(
           "Enter an emergency contact name.";
       if (!player.emergencyPhone.trim())
         errors[`players.${i}.emergencyPhone`] = "Enter an emergency phone number.";
+      else if (!isValidPhone(player.emergencyPhone))
+        errors[`players.${i}.emergencyPhone`] =
+          "Enter a phone number with at least 10 digits.";
       if (
         player.emergencyContactName.trim() &&
         parent.firstName.trim() &&

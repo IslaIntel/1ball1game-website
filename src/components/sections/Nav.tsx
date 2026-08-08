@@ -77,7 +77,7 @@ export function Nav() {
               marker="nav_register"
               location="nav"
               variant="solid"
-              className="!px-5 !py-2.5 !text-[0.8rem]"
+              className="!px-6 !py-3 !text-[0.9rem] shadow-[0_8px_24px_-12px_rgba(226,38,157,0.55)]"
             >
               Register Now
             </CTAButton>
@@ -106,7 +106,7 @@ export function Nav() {
               marker="nav_register_mobile_header"
               location="nav_mobile_header"
               variant="solid"
-              className="!px-4 !py-2 !text-xs"
+              className="!px-5 !py-2.5 !text-sm"
             >
               Register Now
             </CTAButton>
@@ -164,7 +164,7 @@ export function Nav() {
                 marker="nav_register_mobile"
                 location="nav_mobile"
                 variant="solid"
-                className="w-full sm:col-span-2"
+                className="w-full !py-3.5 !text-base sm:col-span-2"
               >
                 Register Now
               </CTAButton>

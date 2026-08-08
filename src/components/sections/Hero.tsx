@@ -94,6 +94,7 @@ export function Hero() {
               href="/register"
               marker="hero_register"
               location="hero"
+              className="!px-9 !py-4 !text-base shadow-[0_12px_40px_-16px_rgba(226,38,157,0.65)] sm:!text-lg"
             >
               Register Now
             </CTAButton>

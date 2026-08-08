@@ -30,6 +30,7 @@ import {
   type Waivers,
   validateStep,
   VOLUNTEER_ROLES,
+  VOLUNTEER_ROLE_LABELS,
   WAIVERS,
 } from "@/lib/registration";
 import { EVENTS, track } from "@/lib/analytics";
@@ -441,7 +442,13 @@ function ParentStep({
             ))}
           </select>
         </Field>
-        <Field label="Email address" id="parent-email" required error={errors["parent.email"]}>
+        <Field
+          label="Email address"
+          id="parent-email"
+          required
+          hint="Must include an @ symbol."
+          error={errors["parent.email"]}
+        >
           <input
             id="parent-email"
             type="email"
@@ -454,6 +461,7 @@ function ParentStep({
           label="Primary phone number"
           id="parent-phone"
           required
+          hint="At least 10 digits."
           error={errors["parent.phone"]}
         >
           <input
@@ -530,7 +538,12 @@ function ParentStep({
               onChange={(e) => onChange("secondaryName", e.target.value)}
             />
           </Field>
-          <Field label="Phone" id="secondary-phone">
+          <Field
+            label="Phone"
+            id="secondary-phone"
+            hint="At least 10 digits if provided."
+            error={errors["parent.secondaryPhone"]}
+          >
             <input
               id="secondary-phone"
               type="tel"
@@ -539,7 +552,12 @@ function ParentStep({
               onChange={(e) => onChange("secondaryPhone", e.target.value)}
             />
           </Field>
-          <Field label="Email" id="secondary-email">
+          <Field
+            label="Email"
+            id="secondary-email"
+            hint="Must include an @ symbol if provided."
+            error={errors["parent.secondaryEmail"]}
+          >
             <input
               id="secondary-email"
               type="email"
@@ -798,6 +816,7 @@ function MedicalStep({
                 label="Emergency phone number"
                 id={`player-${i}-ec-phone`}
                 required
+                hint="At least 10 digits."
                 error={errors[`players.${i}.emergencyPhone`]}
               >
                 <input
@@ -876,7 +895,10 @@ function VolunteerStep({
       <div className="rounded-2xl border border-magenta/20 bg-magenta/5 p-5">
         <strong className="text-ink">Community makes the season possible.</strong>
         <p className="mt-1 text-sm text-ink/65">
-          No soccer experience is required for many roles, and guidance is provided.
+          No soccer experience is required for coaching roles, and guidance is
+          provided. Head coaches receive a 50% registration refund and assistant
+          coaches receive a 20% refund if selected for the role by your school’s
+          PTA — refunds are processed after selections are made.
         </p>
       </div>
       <Field
@@ -894,7 +916,7 @@ function VolunteerStep({
           <option value="">Select an option</option>
           {VOLUNTEER_ROLES.map((r) => (
             <option key={r} value={r}>
-              {r}
+              {VOLUNTEER_ROLE_LABELS[r]}
             </option>
           ))}
         </select>
