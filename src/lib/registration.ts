@@ -10,6 +10,7 @@ export const SCHOOLS = [
   "Kent Gardens Elementary",
   "Lemon Road Elementary",
   "Shrevewood Elementary",
+  "Spring Hill Elementary",
   "Timber Lane Elementary",
   "Westgate Elementary",
   "Other / Private School",
@@ -58,7 +59,7 @@ export const STEP_LABELS = [
   "Medical",
   "Volunteer",
   "Waivers",
-  "Payment",
+  "Review",
 ] as const;
 
 export const STEP_TITLES = [
@@ -67,7 +68,7 @@ export const STEP_TITLES = [
   "Medical & emergency information",
   "Volunteer with your school community",
   "Review and acknowledge",
-  "Confirm & submit",
+  "Confirm & pay",
 ] as const;
 
 export const STEP_DESCRIPTIONS = [
@@ -76,8 +77,13 @@ export const STEP_DESCRIPTIONS = [
   "Provide a separate emergency contact and medical response for each player.",
   "Your school’s PTA soccer club is powered by community volunteers.",
   "Open each section and select every acknowledgment before continuing.",
-  "Confirm the details below, then submit your registration. A confirmation email will follow.",
+  "Review your details, then complete payment to register.",
 ] as const;
+
+/** Registration total in cents from player count (server-side source of truth). */
+export function registrationTotalCents(playerCount: number) {
+  return playerCount * FEE_CENTS;
+}
 
 export type ParentInfo = {
   firstName: string;

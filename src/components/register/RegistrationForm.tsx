@@ -33,8 +33,9 @@ import {
   VOLUNTEER_ROLE_LABELS,
   WAIVERS,
 } from "@/lib/registration";
-import { EVENTS, track } from "@/lib/analytics";
 import { RegistrationSuccess } from "@/components/register/RegistrationSuccess";
+import { PaymentSection } from "@/components/register/PaymentSection";
+import { EVENTS, track } from "@/lib/analytics";
 
 const fieldClass =
   "w-full rounded-xl border border-ink/15 bg-cloud px-4 py-3 text-ink outline-none transition-colors placeholder:text-ink/35 focus:border-magenta";
@@ -1058,21 +1059,7 @@ function ReviewStep({
             : null}
         </p>
       </div>
-      <div className="rounded-2xl border border-magenta/25 bg-magenta/5 p-5">
-        <div className="eyebrow text-magenta">Amount due</div>
-        <div className="mt-2 flex items-baseline justify-between gap-4">
-          <p className="text-ink/70">
-            {players.length} player{players.length === 1 ? "" : "s"} × $199
-          </p>
-          <p className="font-display text-3xl font-semibold text-ink">
-            {formatUsd(totalCents)}
-          </p>
-        </div>
-        <p className="mt-3 text-sm text-ink/60">
-          Submitting this form saves your registration. A confirmation email will be
-          sent to {parent.email || "your address"} shortly.
-        </p>
-      </div>
+      <PaymentSection playerCount={players.length} totalCents={totalCents} />
     </section>
   );
 }
