@@ -76,7 +76,7 @@ export const STEP_DESCRIPTIONS = [
   "Provide a separate emergency contact and medical response for each player.",
   "Your school’s PTA soccer club is powered by community volunteers.",
   "Open each section and select every acknowledgment before continuing.",
-  "Confirm the details below, then submit your registration. Payment instructions will follow by email.",
+  "Confirm the details below, then submit your registration. A confirmation email will follow.",
 ] as const;
 
 export type ParentInfo = {
