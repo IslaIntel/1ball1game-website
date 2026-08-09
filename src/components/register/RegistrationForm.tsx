@@ -34,6 +34,7 @@ import {
   WAIVERS,
 } from "@/lib/registration";
 import { EVENTS, track } from "@/lib/analytics";
+import { RegistrationSuccess } from "@/components/register/RegistrationSuccess";
 
 const fieldClass =
   "w-full rounded-xl border border-ink/15 bg-cloud px-4 py-3 text-ink outline-none transition-colors placeholder:text-ink/35 focus:border-magenta";
@@ -172,27 +173,10 @@ export function RegistrationForm() {
 
   if (status === "success") {
     return (
-      <div className="rounded-[2rem] border border-ink/10 bg-cloud p-8 shadow-[0_30px_60px_-40px_rgba(10,17,56,0.35)] sm:p-10">
-        <span className="eyebrow text-magenta">Registration received</span>
-        <h2 className="mt-4 font-display text-3xl font-semibold text-ink sm:text-4xl">
-          You’re all set — thanks for registering.
-        </h2>
-        <p className="mt-4 max-w-xl text-ink/65">
-          We received registration for{" "}
-          <strong className="text-ink">
-            {players.map((p) => `${p.firstName} ${p.lastName}`).join(", ")}
-          </strong>
-          . A confirmation and payment instructions for{" "}
-          <strong className="text-ink">{formatUsd(totalCents)}</strong> will be
-          sent to <strong className="text-ink">{parent.email}</strong>.
-        </p>
-        <Link
-          href="/"
-          className="mt-8 inline-flex rounded-full bg-magenta px-7 py-3.5 text-sm font-semibold text-cloud transition-colors hover:bg-magenta-deep"
-        >
-          Return home
-        </Link>
-      </div>
+      <RegistrationSuccess
+        playerNames={players.map((p) => `${p.firstName} ${p.lastName}`).join(", ")}
+        email={parent.email}
+      />
     );
   }
 
@@ -1085,8 +1069,8 @@ function ReviewStep({
           </p>
         </div>
         <p className="mt-3 text-sm text-ink/60">
-          Submitting this form saves your registration. Payment instructions will be
-          emailed to {parent.email || "your address"} shortly.
+          Submitting this form saves your registration. A confirmation email will be
+          sent to {parent.email || "your address"} shortly.
         </p>
       </div>
     </section>
