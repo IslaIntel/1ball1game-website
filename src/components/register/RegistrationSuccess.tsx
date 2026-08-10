@@ -65,22 +65,26 @@ export function RegistrationSuccess({
             <p>Dear Parent/Guardian,</p>
             <p>
               Thank you for registering{" "}
-              <strong className="text-ink">{playerNames}</strong> for your
-              school&apos;s PTA soccer club! We are thrilled to welcome your family
-              to the program and are happy to be partners with your school
+              <strong className="text-ink">{playerNames}</strong> for the{" "}
+              <strong className="text-ink">1B1G Fall Soccer League</strong> in
+              partnership with your school&apos;s PTA! We are thrilled to welcome
+              your family to the program and are excited to serve your school
               community.
             </p>
             <p>
               A confirmation email will be sent to{" "}
-              <strong className="text-ink">{email}</strong>. This season,{" "}
-              <strong className="text-ink">1B1G</strong> and{" "}
-              <strong className="text-ink">Surf Soccer Nation</strong> are working
-              side-by-side with your PTA to build the most welcoming, fun, and
-              engaging soccer environment possible for our players.
+              <strong className="text-ink">{email}</strong>.
             </p>
             <p>
-              Here is a look at what your registration includes as part of our
-              partnership with Surf Soccer:
+              This season, <strong className="text-ink">1B1G</strong> and{" "}
+              <strong className="text-ink">Surf Soccer Nation</strong> are
+              operating hand-in-hand with your PTA leadership to build the most
+              welcoming, fun, and engaging soccer environment possible for our
+              players.
+            </p>
+            <p>
+              Here is a look at what your active registration includes through
+              1B1G and Surf Soccer:
             </p>
           </motion.div>
 
@@ -94,10 +98,10 @@ export function RegistrationSuccess({
                 Player &amp; Coaching Development Modules
               </h2>
               <p className="mt-1.5 text-sm leading-relaxed text-ink/70">
-                As part of your membership and our partnership with the national
-                soccer brand, Surf Soccer, you will receive access to exclusive
-                coaching and player training modules directly through their
-                platform.
+                As part of your membership in 1B1G and our partnership with the
+                national soccer brand, Surf Soccer, you will receive access to
+                exclusive coaching and player training modules directly through
+                their platform.
               </p>
             </div>
             <div>
@@ -106,8 +110,8 @@ export function RegistrationSuccess({
               </h2>
               <p className="mt-1.5 text-sm leading-relaxed text-ink/70">
                 To keep as many of your registration dollars in your school as
-                possible, Surf Nation is making a donation of balls, pinnies,
-                goals, and cones to every school.
+                possible, 1B1G and Surf Soccer are making a donation of balls,
+                pinnies, goals, and cones directly to your school&apos;s program.
               </p>
             </div>
           </motion.div>
@@ -117,21 +121,21 @@ export function RegistrationSuccess({
               What&apos;s Next?
             </h2>
             <p className="text-ink/70">
-              As school teams form and we work around the schedules of our parent
-              volunteer coaches, you will receive a more detailed email with
-              practice times and rosters. Practices are set to begin the week of{" "}
-              <strong className="text-ink">September 14th</strong> with games
+              As teams form and we work around the schedules of our parent
+              volunteer coaches, you will receive a detailed email with practice
+              times and rosters. Practices are set to begin the week of{" "}
+              <strong className="text-ink">September 14th</strong>, with games
               played on Saturdays. Please keep an eye out for additional updates
-              from us, your PTA, and Surf in the coming weeks.
+              from 1B1G and your PTA in the coming weeks.
             </p>
             <p className="text-ink/70">
-              Welcome to the club, and we look forward to supporting your PTA for
-              an amazing fall season!
+              Welcome to the club, and we look forward to an amazing fall season
+              together!
             </p>
             <p className="text-ink/70">
               Best regards,
               <br />
-              <strong className="text-ink">1B1G Team</strong>
+              <strong className="text-ink">The 1B1G / Surf McLean Team</strong>
               <br />
               <span className="text-ink/55">
                 In Partnership with Surf Soccer Nation &amp; Your School&apos;s
