@@ -118,10 +118,16 @@ const PaymentForm = forwardRef<RegistrationPaymentHandle, PaymentFormProps>(
     return (
       <PaymentElement
         onReady={() => onReadyChange?.(true)}
-        onLoadError={() =>
-          onReadyChange?.(false)
-        }
-        options={{ layout: "tabs" }}
+        onLoadError={() => onReadyChange?.(false)}
+        options={{
+          layout: "accordion",
+          paymentMethodOrder: ["card"],
+          wallets: {
+            applePay: "never",
+            googlePay: "never",
+            link: "never",
+          },
+        }}
       />
     );
   },

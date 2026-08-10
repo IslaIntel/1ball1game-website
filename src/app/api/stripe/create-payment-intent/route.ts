@@ -61,7 +61,7 @@ export async function POST(request: Request) {
         amount,
         currency: "usd",
         receipt_email: email,
-        automatic_payment_methods: { enabled: true },
+        payment_method_types: ["card"],
         metadata: {
           player_count: String(playerCount),
           fee_per_player_cents: String(FEE_CENTS),
