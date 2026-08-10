@@ -1,0 +1,120 @@
+import {
+  FEE_CENTS,
+  MAX_PLAYERS,
+  isVolunteering,
+  registrationTotalCents,
+  validateStep,
+  type PlayerInfo,
+  type RegistrationPayload,
+} from "@/lib/registration";
+
+const WEBHOOK_URL =
+  process.env.REGISTER_WEBHOOK_URL ??
+  "https://waves.islaintel.com/api/v1/webhooks/oQwh7JAcfDrZ8CgUvymgO";
+
+export type SubmitRegistrationOptions = {
+  paymentStatus: "paid" | "pending";
+  stripePaymentIntentId?: string;
+  submittedAt?: string;
+};
+
+function flattenPlayers(players: PlayerInfo[]) {
+  const flat: Record<string, string> = {};
+  players.forEach((player, i) => {
+    const n = i + 1;
+    flat[`player_${n}_first_name`] = player.firstName.trim();
+    flat[`player_${n}_last_name`] = player.lastName.trim();
+    flat[`player_${n}_date_of_birth`] = player.dateOfBirth;
+    flat[`player_${n}_gender`] = player.gender;
+    flat[`player_${n}_grade`] = player.grade;
+    flat[`player_${n}_school`] = player.school;
+    flat[`player_${n}_jersey_size`] = player.jerseySize;
+    flat[`player_${n}_buddy_request`] = player.buddyRequest.trim();
+    flat[`player_${n}_emergency_contact_name`] =
+      player.emergencyContactName.trim();
+    flat[`player_${n}_emergency_phone`] = player.emergencyPhone.trim();
+    flat[`player_${n}_has_medical_conditions`] = player.hasMedicalConditions;
+    flat[`player_${n}_medical_details`] = player.medicalDetails.trim();
+  });
+  return flat;
+}
+
+export function validateRegistrationPayload(payload: RegistrationPayload) {
+  for (let step = 0; step <= 4; step++) {
+    const errors = validateStep(step, payload);
+    if (Object.keys(errors).length) {
+      return errors;
+    }
+  }
+  return null;
+}
+
+export async function submitRegistration(
+  payload: RegistrationPayload,
+  options: SubmitRegistrationOptions,
+) {
+  if (!WEBHOOK_URL) {
+    throw new Error("Registration webhook is not configured.");
+  }
+
+  const validationErrors = validateRegistrationPayload(payload);
+  if (validationErrors) {
+    throw new Error("Registration validation failed.");
+  }
+
+  const { parent, players, volunteer, waivers } = payload;
+  const playerCount = players.length;
+  if (playerCount < 1 || playerCount > MAX_PLAYERS) {
+    throw new Error("Invalid player count.");
+  }
+
+  const totalCents = registrationTotalCents(playerCount);
+  const submittedAt = options.submittedAt ?? new Date().toISOString();
+
+  const sheetRow = {
+    submitted_at: submittedAt,
+    source: "1ball1game-website-register",
+    season: "Fall 2026",
+    parent_first_name: parent.firstName.trim(),
+    parent_last_name: parent.lastName.trim(),
+    parent_relationship: parent.relationship,
+    parent_email: parent.email.trim(),
+    parent_phone: parent.phone.trim(),
+    parent_street: parent.street.trim(),
+    parent_city: parent.city.trim(),
+    parent_state: parent.state.trim(),
+    parent_zip: parent.zip.trim(),
+    secondary_name: parent.secondaryName.trim(),
+    secondary_phone: parent.secondaryPhone.trim(),
+    secondary_email: parent.secondaryEmail.trim(),
+    player_count: playerCount,
+    total_cents: totalCents,
+    total_usd: (totalCents / 100).toFixed(2),
+    payment_status: options.paymentStatus,
+    stripe_payment_intent_id: options.stripePaymentIntentId ?? "",
+    volunteer_role: volunteer.role,
+    volunteer_name: isVolunteering(volunteer.role) ? volunteer.name.trim() : "",
+    volunteer_shirt_size: isVolunteering(volunteer.role)
+      ? volunteer.shirtSize
+      : "",
+    waiver_program_administration: waivers.programAdministration,
+    waiver_liability_release: waivers.liabilityRelease,
+    waiver_photo_media: waivers.photoMedia,
+    waiver_code_of_conduct: waivers.codeOfConduct,
+    waiver_fundraising_agreement: waivers.fundraisingAgreement,
+    players_json: JSON.stringify(players),
+    ...flattenPlayers(players),
+  };
+
+  const response = await fetch(WEBHOOK_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(sheetRow),
+  });
+
+  if (!response.ok) {
+    throw new Error("Unable to submit registration to webhook.");
+  }
+
+  return { playerCount, totalCents, feePerPlayerCents: FEE_CENTS };
+}

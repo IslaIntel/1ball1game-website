@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   ADULT_SHIRT_SIZES,
   emptyParent,
@@ -34,7 +34,10 @@ import {
   WAIVERS,
 } from "@/lib/registration";
 import { RegistrationSuccess } from "@/components/register/RegistrationSuccess";
-import { PaymentSection } from "@/components/register/PaymentSection";
+import {
+  RegistrationPayment,
+  type RegistrationPaymentHandle,
+} from "@/components/register/RegistrationPayment";
 import { EVENTS, track } from "@/lib/analytics";
 
 const fieldClass =
@@ -84,6 +87,8 @@ export function RegistrationForm() {
   const [openWaiver, setOpenWaiver] = useState<WaiverKey | null>(
     "programAdministration",
   );
+  const [paymentReady, setPaymentReady] = useState(false);
+  const paymentRef = useRef<RegistrationPaymentHandle>(null);
 
   const totalCents = players.length * FEE_CENTS;
   const payload: RegistrationPayload = { parent, players, volunteer, waivers };
@@ -125,13 +130,16 @@ export function RegistrationForm() {
 
   const handleSubmit = async () => {
     const nextErrors = validateStep(4, payload);
-    const paymentErrors = validateStep(5, payload);
-    const all = { ...nextErrors, ...paymentErrors };
-    // Re-validate all prior steps before submit
-    for (let i = 0; i <= 5; i++) Object.assign(all, validateStep(i, payload));
+    const all = { ...nextErrors };
+    for (let i = 0; i <= 4; i++) Object.assign(all, validateStep(i, payload));
     setErrors(all);
     if (Object.keys(all).length) {
       setErrorMessage("Please complete all required fields before submitting.");
+      return;
+    }
+
+    if (!paymentRef.current?.isReady()) {
+      setErrorMessage("Payment form is still loading. Please wait a moment.");
       return;
     }
 
@@ -145,20 +153,9 @@ export function RegistrationForm() {
     });
 
     try {
-      const response = await fetch("/api/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...payload,
-          totalCents,
-          playerCount: players.length,
-        }),
-      });
-      if (!response.ok) {
-        const data = (await response.json().catch(() => null)) as {
-          error?: string;
-        } | null;
-        throw new Error(data?.error ?? "Unable to submit registration.");
+      const result = await paymentRef.current.confirmPayment();
+      if (!result.ok) {
+        throw new Error(result.error);
       }
       setStatus("success");
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -167,7 +164,7 @@ export function RegistrationForm() {
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "Unable to submit registration. Please try again.",
+          : "Unable to complete payment. Please try again.",
       );
     }
   };
@@ -310,12 +307,21 @@ export function RegistrationForm() {
               />
             )}
             {step === 5 && (
-              <ReviewStep
-                parent={parent}
-                players={players}
-                volunteer={volunteer}
-                totalCents={totalCents}
-              />
+              <>
+                <ReviewStep
+                  parent={parent}
+                  players={players}
+                  volunteer={volunteer}
+                />
+                <RegistrationPayment
+                  ref={paymentRef}
+                  payload={payload}
+                  totalCents={totalCents}
+                  playerCount={players.length}
+                  onReadyChange={setPaymentReady}
+                  onError={setErrorMessage}
+                />
+              </>
             )}
           </div>
 
@@ -354,11 +360,11 @@ export function RegistrationForm() {
               <button
                 type="button"
                 onClick={handleSubmit}
-                disabled={status === "submitting"}
+                disabled={status === "submitting" || !paymentReady}
                 className="rounded-full bg-magenta px-7 py-3 text-sm font-semibold text-cloud transition-colors hover:bg-magenta-deep disabled:opacity-60"
               >
                 {status === "submitting"
-                  ? "Submitting…"
+                  ? "Processing payment…"
                   : `Submit registration · ${formatUsd(totalCents)}`}
               </button>
             )}
@@ -1016,12 +1022,10 @@ function ReviewStep({
   parent,
   players,
   volunteer,
-  totalCents,
 }: {
   parent: ParentInfo;
   players: PlayerInfo[];
   volunteer: VolunteerInfo;
-  totalCents: number;
 }) {
   return (
     <section className="space-y-6">
@@ -1059,7 +1063,6 @@ function ReviewStep({
             : null}
         </p>
       </div>
-      <PaymentSection playerCount={players.length} totalCents={totalCents} />
     </section>
   );
 }

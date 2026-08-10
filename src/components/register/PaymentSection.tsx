@@ -5,18 +5,13 @@ import { FEE_CENTS, formatUsd } from "@/lib/registration";
 type PaymentSectionProps = {
   playerCount: number;
   totalCents: number;
-  /** Stripe Payment Element mounts here once wired up tomorrow. */
-  paymentReady?: boolean;
+  children?: React.ReactNode;
 };
 
-/**
- * Amount summary + Stripe mount point on the review step.
- * Tomorrow: wrap with Elements provider and render PaymentElement in #stripe-payment-element.
- */
 export function PaymentSection({
   playerCount,
   totalCents,
-  paymentReady = false,
+  children,
 }: PaymentSectionProps) {
   const feeDisplay = formatUsd(FEE_CENTS).replace(".00", "");
 
@@ -32,16 +27,8 @@ export function PaymentSection({
         </p>
       </div>
 
-      <div
-        id="stripe-payment-element"
-        className="mt-5 min-h-[120px] rounded-xl border border-ink/10 bg-cloud p-4"
-        aria-hidden={!paymentReady}
-      >
-        {!paymentReady ? (
-          <p className="text-sm text-ink/50">
-            Secure card payment will appear here once Stripe is connected.
-          </p>
-        ) : null}
+      <div className="mt-5 min-h-[120px] rounded-xl border border-ink/10 bg-cloud p-4">
+        {children}
       </div>
 
       <p className="mt-3 text-sm text-ink/60">

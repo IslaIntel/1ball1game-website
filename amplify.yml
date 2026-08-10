@@ -13,6 +13,7 @@ frontend:
         - env | grep -e CONTACT_WEBHOOK_URL >> .env.production || true
         - env | grep -e REGISTER_WEBHOOK_URL >> .env.production || true
         - env | grep -e STRIPE_SECRET_KEY >> .env.production || true
+        - env | grep -e STRIPE_WEBHOOK_SECRET >> .env.production || true
         - npm run build
   artifacts:
     baseDirectory: .next
