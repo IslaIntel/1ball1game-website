@@ -84,6 +84,7 @@ export function RegistrationForm() {
     "idle",
   );
   const [errorMessage, setErrorMessage] = useState("");
+  const [parentSignature, setParentSignature] = useState("");
   const [openWaiver, setOpenWaiver] = useState<WaiverKey | null>(
     "programAdministration",
   );
@@ -91,7 +92,13 @@ export function RegistrationForm() {
   const paymentRef = useRef<RegistrationPaymentHandle>(null);
 
   const totalCents = players.length * FEE_CENTS;
-  const payload: RegistrationPayload = { parent, players, volunteer, waivers };
+  const payload: RegistrationPayload = {
+    parent,
+    players,
+    volunteer,
+    waivers,
+    parentSignature,
+  };
 
   const updateParent = <K extends keyof ParentInfo>(key: K, value: ParentInfo[K]) => {
     setParent((prev) => ({ ...prev, [key]: value }));
@@ -131,7 +138,7 @@ export function RegistrationForm() {
   const handleSubmit = async () => {
     const nextErrors = validateStep(4, payload);
     const all = { ...nextErrors };
-    for (let i = 0; i <= 4; i++) Object.assign(all, validateStep(i, payload));
+    for (let i = 0; i <= 5; i++) Object.assign(all, validateStep(i, payload));
     setErrors(all);
     if (Object.keys(all).length) {
       setErrorMessage("Please complete all required fields before submitting.");
@@ -153,7 +160,7 @@ export function RegistrationForm() {
     });
 
     try {
-      const result = await paymentRef.current.confirmPayment();
+      const result = await paymentRef.current.confirmPayment(payload);
       if (!result.ok) {
         throw new Error(result.error);
       }
@@ -312,6 +319,10 @@ export function RegistrationForm() {
                   parent={parent}
                   players={players}
                   volunteer={volunteer}
+                  waivers={waivers}
+                  parentSignature={parentSignature}
+                  signatureError={errors.parentSignature}
+                  onSignatureChange={setParentSignature}
                 />
                 <RegistrationPayment
                   ref={paymentRef}
@@ -1022,10 +1033,18 @@ function ReviewStep({
   parent,
   players,
   volunteer,
+  waivers,
+  parentSignature,
+  signatureError,
+  onSignatureChange,
 }: {
   parent: ParentInfo;
   players: PlayerInfo[];
   volunteer: VolunteerInfo;
+  waivers: Waivers;
+  parentSignature: string;
+  signatureError?: string;
+  onSignatureChange: (value: string) => void;
 }) {
   return (
     <section className="space-y-6">
@@ -1033,35 +1052,116 @@ function ReviewStep({
         <h3 className="font-display text-xl font-semibold text-ink">
           Parent / guardian
         </h3>
-        <p className="mt-2 text-ink/70">
-          {parent.firstName} {parent.lastName} · {parent.relationship}
-          <br />
-          {parent.email} · {parent.phone}
-          <br />
-          {parent.street}, {parent.city}, {parent.state} {parent.zip}
-        </p>
+        <dl className="mt-3 space-y-1 text-sm text-ink/70">
+          <div>
+            <dt className="sr-only">Name</dt>
+            <dd>
+              {parent.firstName} {parent.lastName} · {parent.relationship}
+            </dd>
+          </div>
+          <div>
+            <dt className="sr-only">Contact</dt>
+            <dd>
+              {parent.email} · {parent.phone}
+            </dd>
+          </div>
+          <div>
+            <dt className="sr-only">Address</dt>
+            <dd>
+              {parent.street}, {parent.city}, {parent.state} {parent.zip}
+            </dd>
+          </div>
+          {(parent.secondaryName.trim() ||
+            parent.secondaryPhone.trim() ||
+            parent.secondaryEmail.trim()) && (
+            <div>
+              <dt className="font-medium text-ink/80">Secondary contact</dt>
+              <dd>
+                {parent.secondaryName || "—"} · {parent.secondaryPhone || "—"} ·{" "}
+                {parent.secondaryEmail || "—"}
+              </dd>
+            </div>
+          )}
+        </dl>
       </div>
+
       <div className="rounded-2xl border border-ink/10 bg-paper/60 p-5">
         <h3 className="font-display text-xl font-semibold text-ink">Players</h3>
-        <ul className="mt-3 space-y-3">
+        <ul className="mt-3 space-y-4">
           {players.map((player, i) => (
-            <li key={i} className="text-ink/70">
-              <strong className="text-ink">
+            <li key={i} className="text-sm text-ink/70">
+              <p className="font-semibold text-ink">
                 {player.firstName} {player.lastName}
-              </strong>{" "}
-              · {player.grade} · {player.school} · {player.jerseySize}
+              </p>
+              <p className="mt-1">
+                {player.dateOfBirth} · {player.gender} · {player.grade} ·{" "}
+                {player.school} · {player.jerseySize}
+              </p>
+              {player.buddyRequest.trim() ? (
+                <p className="mt-1">Buddy request: {player.buddyRequest}</p>
+              ) : null}
+              <p className="mt-1">
+                Emergency: {player.emergencyContactName} · {player.emergencyPhone}
+              </p>
+              <p className="mt-1">
+                Medical:{" "}
+                {player.hasMedicalConditions === "yes"
+                  ? player.medicalDetails.trim() || "Yes (no details provided)"
+                  : "None reported"}
+              </p>
             </li>
           ))}
         </ul>
       </div>
+
       <div className="rounded-2xl border border-ink/10 bg-paper/60 p-5">
         <h3 className="font-display text-xl font-semibold text-ink">Volunteer</h3>
-        <p className="mt-2 text-ink/70">
+        <p className="mt-2 text-sm text-ink/70">
           {volunteer.role || "—"}
           {isVolunteering(volunteer.role)
             ? ` · ${volunteer.name} · ${volunteer.shirtSize}`
             : null}
         </p>
+      </div>
+
+      <div className="rounded-2xl border border-ink/10 bg-paper/60 p-5">
+        <h3 className="font-display text-xl font-semibold text-ink">
+          Waivers acknowledged
+        </h3>
+        <ul className="mt-3 space-y-2 text-sm text-ink/70">
+          {WAIVERS.map((waiver) => (
+            <li key={waiver.key} className="flex items-start gap-2">
+              <span
+                className={
+                  waivers[waiver.key] ? "font-semibold text-magenta" : "text-ink/40"
+                }
+                aria-hidden
+              >
+                {waivers[waiver.key] ? "✓" : "○"}
+              </span>
+              <span>{waiver.title}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="rounded-2xl border border-ink/10 bg-paper/60 p-5">
+        <Field
+          label="Parent / guardian typed signature"
+          id="parent-signature"
+          required
+          error={signatureError}
+          hint="Type your full legal name exactly as entered above. Required to submit."
+        >
+          <input
+            id="parent-signature"
+            className={fieldClass}
+            value={parentSignature}
+            onChange={(e) => onSignatureChange(e.target.value)}
+            autoComplete="name"
+            placeholder={`${parent.firstName} ${parent.lastName}`.trim()}
+          />
+        </Field>
       </div>
     </section>
   );

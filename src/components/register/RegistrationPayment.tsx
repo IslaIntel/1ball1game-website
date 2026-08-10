@@ -47,7 +47,9 @@ const stripeAppearance = {
 };
 
 export type RegistrationPaymentHandle = {
-  confirmPayment: () => Promise<{ ok: true } | { ok: false; error: string }>;
+  confirmPayment: (
+    payload: RegistrationPayload,
+  ) => Promise<{ ok: true } | { ok: false; error: string }>;
   isReady: () => boolean;
 };
 
@@ -61,18 +63,19 @@ type RegistrationPaymentProps = {
 
 type PaymentFormProps = {
   onReadyChange?: (ready: boolean) => void;
+  paymentIntentId: string | null;
 };
 
 const PaymentForm = forwardRef<RegistrationPaymentHandle, PaymentFormProps>(
-  function PaymentForm({ onReadyChange }, ref) {
+  function PaymentForm({ onReadyChange, paymentIntentId }, ref) {
     const stripe = useStripe();
     const elements = useElements();
     const processingRef = useRef(false);
 
     useImperativeHandle(ref, () => ({
-      isReady: () => Boolean(stripe && elements),
-      async confirmPayment() {
-        if (!stripe || !elements) {
+      isReady: () => Boolean(stripe && elements && paymentIntentId),
+      async confirmPayment(payload: RegistrationPayload) {
+        if (!stripe || !elements || !paymentIntentId) {
           return { ok: false, error: "Payment form is still loading. Please wait." };
         }
         if (processingRef.current) {
@@ -81,6 +84,21 @@ const PaymentForm = forwardRef<RegistrationPaymentHandle, PaymentFormProps>(
 
         processingRef.current = true;
         try {
+          const syncResponse = await fetch("/api/stripe/sync-registration", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ paymentIntentId, payload }),
+          });
+          if (!syncResponse.ok) {
+            const data = (await syncResponse.json().catch(() => null)) as {
+              error?: string;
+            } | null;
+            return {
+              ok: false,
+              error: data?.error ?? "Unable to save your signature and registration details.",
+            };
+          }
+
           const { error: submitError } = await elements.submit();
           if (submitError) {
             return {
@@ -144,6 +162,7 @@ export const RegistrationPayment = forwardRef<
   ref,
 ) {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [elementReady, setElementReady] = useState(false);
   const paymentFormRef = useRef<RegistrationPaymentHandle>(null);
@@ -155,11 +174,11 @@ export const RegistrationPayment = forwardRef<
   useImperativeHandle(ref, () => ({
     isReady: () =>
       Boolean(clientSecret && elementReady && paymentFormRef.current?.isReady()),
-    confirmPayment: async () => {
+    confirmPayment: async (payload: RegistrationPayload) => {
       if (!paymentFormRef.current) {
         return { ok: false, error: "Payment form is still loading. Please wait." };
       }
-      return paymentFormRef.current.confirmPayment();
+      return paymentFormRef.current.confirmPayment(payload);
     },
   }));
 
@@ -167,6 +186,7 @@ export const RegistrationPayment = forwardRef<
     let cancelled = false;
     setLoading(true);
     setClientSecret(null);
+    setPaymentIntentId(null);
     setElementReady(false);
     onReadyChange?.(false);
 
@@ -180,19 +200,21 @@ export const RegistrationPayment = forwardRef<
 
         const data = (await response.json().catch(() => null)) as {
           clientSecret?: string;
+          paymentIntentId?: string;
           alreadyPaid?: boolean;
           error?: string;
         } | null;
 
         if (cancelled) return;
 
-        if (!response.ok || !data?.clientSecret) {
+        if (!response.ok || !data?.clientSecret || !data?.paymentIntentId) {
           onError?.(data?.error ?? "Unable to load payment form.");
           setLoading(false);
           return;
         }
 
         setClientSecret(data.clientSecret);
+        setPaymentIntentId(data.paymentIntentId);
         setLoading(false);
       } catch {
         if (!cancelled) {
@@ -226,6 +248,7 @@ export const RegistrationPayment = forwardRef<
         >
           <PaymentForm
             ref={paymentFormRef}
+            paymentIntentId={paymentIntentId}
             onReadyChange={setElementReady}
           />
         </Elements>

@@ -143,6 +143,7 @@ export type RegistrationPayload = {
   players: PlayerInfo[];
   volunteer: VolunteerInfo;
   waivers: Waivers;
+  parentSignature: string;
 };
 
 export const emptyParent = (): ParentInfo => ({
@@ -424,6 +425,12 @@ export function validateStep(
     }
     if (Object.keys(errors).length)
       errors["waivers"] = "Five individual acknowledgments are required.";
+  }
+
+  if (step === 5) {
+    if (!data.parentSignature?.trim()) {
+      errors.parentSignature = "Type your full name to sign before submitting.";
+    }
   }
 
   return errors;

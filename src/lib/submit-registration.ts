@@ -4,18 +4,27 @@ import {
   isVolunteering,
   registrationTotalCents,
   validateStep,
+  WAIVERS,
   type PlayerInfo,
   type RegistrationPayload,
 } from "@/lib/registration";
+import { buildRegistrationSummaryText } from "@/lib/build-registration-summary";
 
 const WEBHOOK_URL =
   process.env.REGISTER_WEBHOOK_URL ??
   "https://waves.islaintel.com/api/v1/webhooks/oQwh7JAcfDrZ8CgUvymgO";
 
+const INFO_EMAIL = "info@1ball1game.org";
+
 export type SubmitRegistrationOptions = {
   paymentStatus: "paid" | "pending";
   stripePaymentIntentId?: string;
   submittedAt?: string;
+  clientIp?: string;
+};
+
+type ValidateOptions = {
+  requireSignature?: boolean;
 };
 
 function flattenPlayers(players: PlayerInfo[]) {
@@ -39,14 +48,45 @@ function flattenPlayers(players: PlayerInfo[]) {
   return flat;
 }
 
-export function validateRegistrationPayload(payload: RegistrationPayload) {
-  for (let step = 0; step <= 4; step++) {
+export function validateRegistrationPayload(
+  payload: RegistrationPayload,
+  options: ValidateOptions = {},
+) {
+  const lastStep = options.requireSignature ? 5 : 4;
+  for (let step = 0; step <= lastStep; step++) {
     const errors = validateStep(step, payload);
     if (Object.keys(errors).length) {
       return errors;
     }
   }
   return null;
+}
+
+async function sendResendNotification(
+  parentEmail: string,
+  subject: string,
+  body: string,
+) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return;
+
+  const from =
+    process.env.REGISTER_EMAIL_FROM ??
+    "1 Ball 1 Game Registration <registration@1ball1game.org>";
+
+  await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from,
+      to: [parentEmail, INFO_EMAIL],
+      subject,
+      text: body,
+    }),
+  });
 }
 
 export async function submitRegistration(
@@ -57,12 +97,14 @@ export async function submitRegistration(
     throw new Error("Registration webhook is not configured.");
   }
 
-  const validationErrors = validateRegistrationPayload(payload);
+  const validationErrors = validateRegistrationPayload(payload, {
+    requireSignature: true,
+  });
   if (validationErrors) {
     throw new Error("Registration validation failed.");
   }
 
-  const { parent, players, volunteer, waivers } = payload;
+  const { parent, players, volunteer, waivers, parentSignature } = payload;
   const playerCount = players.length;
   if (playerCount < 1 || playerCount > MAX_PLAYERS) {
     throw new Error("Invalid player count.");
@@ -70,6 +112,18 @@ export async function submitRegistration(
 
   const totalCents = registrationTotalCents(playerCount);
   const submittedAt = options.submittedAt ?? new Date().toISOString();
+  const clientIp = options.clientIp ?? "";
+
+  const registrationEmailBody = buildRegistrationSummaryText(payload, {
+    paymentStatus: options.paymentStatus,
+    stripePaymentIntentId: options.stripePaymentIntentId,
+    submittedAt,
+    clientIp,
+  });
+
+  const waiverSummary = WAIVERS.map(
+    (waiver) => `${waivers[waiver.key] ? "Agreed" : "Not agreed"}: ${waiver.title}`,
+  ).join("\n");
 
   const sheetRow = {
     submitted_at: submittedAt,
@@ -87,6 +141,8 @@ export async function submitRegistration(
     secondary_name: parent.secondaryName.trim(),
     secondary_phone: parent.secondaryPhone.trim(),
     secondary_email: parent.secondaryEmail.trim(),
+    parent_signature: parentSignature.trim(),
+    client_ip: clientIp,
     player_count: playerCount,
     total_cents: totalCents,
     total_usd: (totalCents / 100).toFixed(2),
@@ -102,7 +158,13 @@ export async function submitRegistration(
     waiver_photo_media: waivers.photoMedia,
     waiver_code_of_conduct: waivers.codeOfConduct,
     waiver_fundraising_agreement: waivers.fundraisingAgreement,
+    waiver_summary: waiverSummary,
     players_json: JSON.stringify(players),
+    email_to: `${parent.email.trim()},${INFO_EMAIL}`,
+    email_cc: INFO_EMAIL,
+    notification_recipients: `${parent.email.trim()},${INFO_EMAIL}`,
+    registration_email_body: registrationEmailBody,
+    registration_email_subject: `New 1B1G registration — ${parent.firstName.trim()} ${parent.lastName.trim()}`,
     ...flattenPlayers(players),
   };
 
@@ -115,6 +177,12 @@ export async function submitRegistration(
   if (!response.ok) {
     throw new Error("Unable to submit registration to webhook.");
   }
+
+  await sendResendNotification(
+    parent.email.trim(),
+    sheetRow.registration_email_subject,
+    registrationEmailBody,
+  );
 
   return { playerCount, totalCents, feePerPlayerCents: FEE_CENTS };
 }

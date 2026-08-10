@@ -44,6 +44,7 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
   await submitRegistration(payload, {
     paymentStatus: "paid",
     stripePaymentIntentId: paymentIntent.id,
+    clientIp: paymentIntent.metadata.client_ip ?? "",
   });
 
   const stripe = getStripe();
