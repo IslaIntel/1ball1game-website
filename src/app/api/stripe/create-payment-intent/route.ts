@@ -53,7 +53,7 @@ export async function POST(request: Request) {
   const amount = registrationTotalCents(playerCount);
   const email = parent.email.trim();
   const fingerprint = registrationFingerprint(payload);
-  const idempotencyKey = `reg_${fingerprint}`;
+  const idempotencyKey = `reg_card_${fingerprint}`;
 
   try {
     const paymentIntent = await stripe.paymentIntents.create(
