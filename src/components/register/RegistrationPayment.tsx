@@ -120,7 +120,10 @@ const PaymentForm = forwardRef<RegistrationPaymentHandle, PaymentFormProps>(
         onReady={() => onReadyChange?.(true)}
         onLoadError={() => onReadyChange?.(false)}
         options={{
-          layout: "accordion",
+          layout: {
+            type: "accordion",
+            defaultCollapsed: false,
+          },
           paymentMethodOrder: ["card"],
           wallets: {
             applePay: "never",

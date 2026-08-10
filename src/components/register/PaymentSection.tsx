@@ -1,6 +1,6 @@
 "use client";
 
-import { FEE_CENTS, formatUsd } from "@/lib/registration";
+import { FEE_CENTS, formatUsd, ptaReturnCents } from "@/lib/registration";
 
 type PaymentSectionProps = {
   playerCount: number;
@@ -14,15 +14,21 @@ export function PaymentSection({
   children,
 }: PaymentSectionProps) {
   const feeDisplay = formatUsd(FEE_CENTS).replace(".00", "");
+  const ptaCents = ptaReturnCents(totalCents);
 
   return (
     <div className="rounded-2xl border border-magenta/25 bg-magenta/5 p-5">
       <div className="eyebrow text-magenta">Amount due</div>
-      <div className="mt-2 flex items-baseline justify-between gap-4">
-        <p className="text-ink/70">
-          {playerCount} player{playerCount === 1 ? "" : "s"} × {feeDisplay}
-        </p>
-        <p className="font-display text-3xl font-semibold text-ink">
+      <div className="mt-2 flex items-start justify-between gap-4">
+        <div className="text-ink/70">
+          <p>
+            {playerCount} player{playerCount === 1 ? "" : "s"} × {feeDisplay}
+          </p>
+          <p className="mt-1 text-sm font-medium text-magenta-deep">
+            ({formatUsd(ptaCents)} going right back to your school&apos;s PTA!)
+          </p>
+        </div>
+        <p className="shrink-0 font-display text-3xl font-semibold text-ink">
           {formatUsd(totalCents)}
         </p>
       </div>

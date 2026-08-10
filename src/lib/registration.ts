@@ -11,6 +11,7 @@ export const SCHOOLS = [
   "Lemon Road Elementary",
   "Shrevewood Elementary",
   "Spring Hill Elementary",
+  "Stenwood Elementary",
   "Timber Lane Elementary",
   "Westgate Elementary",
   "Other / Private School",
@@ -83,6 +84,13 @@ export const STEP_DESCRIPTIONS = [
 /** Registration total in cents from player count (server-side source of truth). */
 export function registrationTotalCents(playerCount: number) {
   return playerCount * FEE_CENTS;
+}
+
+export const PTA_RETURN_RATE = 0.75;
+
+/** PTA portion of registration total (75% back to school). */
+export function ptaReturnCents(totalCents: number) {
+  return Math.round(totalCents * PTA_RETURN_RATE);
 }
 
 export type ParentInfo = {
