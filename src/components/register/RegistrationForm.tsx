@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ADULT_SHIRT_SIZES,
   emptyParent,
@@ -90,6 +90,21 @@ export function RegistrationForm() {
   );
   const [paymentReady, setPaymentReady] = useState(false);
   const paymentRef = useRef<RegistrationPaymentHandle>(null);
+
+  useEffect(() => {
+    const warm = () => {
+      void fetch("/api/warmup", { cache: "no-store" }).catch(() => undefined);
+    };
+    warm();
+    const interval = window.setInterval(warm, 4 * 60 * 1000);
+    return () => window.clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    if (step >= 3) {
+      void fetch("/api/warmup", { cache: "no-store" }).catch(() => undefined);
+    }
+  }, [step]);
 
   const totalCents = players.length * FEE_CENTS;
   const payload: RegistrationPayload = {

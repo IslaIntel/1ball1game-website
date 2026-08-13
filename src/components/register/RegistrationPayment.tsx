@@ -191,36 +191,52 @@ export const RegistrationPayment = forwardRef<
     onReadyChange?.(false);
 
     async function createIntent() {
-      try {
-        const response = await fetch("/api/stripe/create-payment-intent", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
+      const maxAttempts = 3;
+      let lastError = "Unable to load payment form.";
 
-        const data = (await response.json().catch(() => null)) as {
-          clientSecret?: string;
-          paymentIntentId?: string;
-          alreadyPaid?: boolean;
-          error?: string;
-        } | null;
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        try {
+          const response = await fetch("/api/stripe/create-payment-intent", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
 
+          const data = (await response.json().catch(() => null)) as {
+            clientSecret?: string;
+            paymentIntentId?: string;
+            alreadyPaid?: boolean;
+            error?: string;
+          } | null;
+
+          if (cancelled) return;
+
+          if (response.ok && data?.clientSecret && data?.paymentIntentId) {
+            setClientSecret(data.clientSecret);
+            setPaymentIntentId(data.paymentIntentId);
+            setLoading(false);
+            return;
+          }
+
+          lastError = data?.error ?? "Unable to load payment form.";
+          const retryable = response.status >= 500 || response.status === 429;
+          if (!retryable || attempt === maxAttempts - 1) {
+            onError?.(lastError);
+            setLoading(false);
+            return;
+          }
+        } catch {
+          if (cancelled) return;
+          lastError = "Unable to load payment form.";
+          if (attempt === maxAttempts - 1) {
+            onError?.(lastError);
+            setLoading(false);
+            return;
+          }
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 400 * 2 ** attempt));
         if (cancelled) return;
-
-        if (!response.ok || !data?.clientSecret || !data?.paymentIntentId) {
-          onError?.(data?.error ?? "Unable to load payment form.");
-          setLoading(false);
-          return;
-        }
-
-        setClientSecret(data.clientSecret);
-        setPaymentIntentId(data.paymentIntentId);
-        setLoading(false);
-      } catch {
-        if (!cancelled) {
-          onError?.("Unable to load payment form.");
-          setLoading(false);
-        }
       }
     }
 
@@ -236,8 +252,8 @@ export const RegistrationPayment = forwardRef<
 
   return (
     <PaymentSection playerCount={playerCount} totalCents={totalCents}>
-      {loading ? (
-        <p className="text-sm text-ink/50">Loading secure payment…</p>
+      {loading && !clientSecret ? (
+        <p className="text-sm text-ink/50">Connecting to secure payment…</p>
       ) : clientSecret ? (
         <Elements
           stripe={stripePromise}

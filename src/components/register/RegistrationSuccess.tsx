@@ -135,7 +135,7 @@ export function RegistrationSuccess({
             <p className="text-ink/70">
               Best regards,
               <br />
-              <strong className="text-ink">The 1B1G / Surf McLean Team</strong>
+              <strong className="text-ink">The 1B1G / Surf Soccer Team</strong>
               <br />
               <span className="text-ink/55">
                 In Partnership with Surf Soccer Nation &amp; Your School&apos;s

@@ -63,26 +63,29 @@ export async function POST(request: Request) {
   const idempotencyKey = `reg_card_${fingerprint}`;
   const clientIp = getClientIp(request);
 
+  const intentParams = {
+    amount,
+    currency: "usd",
+    receipt_email: email,
+    payment_method_types: ["card"],
+    metadata: {
+      player_count: String(playerCount),
+      fee_per_player_cents: String(FEE_CENTS),
+      season: "Fall 2026",
+      source: "1ball1game-website-register",
+      registration_fingerprint: fingerprint,
+      registration_submitted: "false",
+      client_ip: clientIp,
+      parent_signature: payload.parentSignature.trim(),
+      ...encodeRegistrationMetadata(payload),
+    },
+  };
+
   try {
-    const paymentIntent = await stripe.paymentIntents.create(
-      {
-        amount,
-        currency: "usd",
-        receipt_email: email,
-        payment_method_types: ["card"],
-        metadata: {
-          player_count: String(playerCount),
-          fee_per_player_cents: String(FEE_CENTS),
-          season: "Fall 2026",
-          source: "1ball1game-website-register",
-          registration_fingerprint: fingerprint,
-          registration_submitted: "false",
-          client_ip: clientIp,
-          parent_signature: payload.parentSignature.trim(),
-          ...encodeRegistrationMetadata(payload),
-        },
-      },
-      { idempotencyKey },
+    const paymentIntent = await createPaymentIntentWithRetry(
+      stripe,
+      intentParams,
+      idempotencyKey,
     );
 
     if (paymentIntent.status === "succeeded") {
@@ -99,10 +102,24 @@ export async function POST(request: Request) {
       paymentIntentId: paymentIntent.id,
       amount,
     });
-  } catch {
+  } catch (error) {
+    console.error("Stripe paymentIntents.create failed:", error);
     return NextResponse.json(
       { error: "Unable to start payment. Please try again." },
       { status: 502 },
     );
+  }
+}
+
+async function createPaymentIntentWithRetry(
+  stripe: NonNullable<ReturnType<typeof getStripe>>,
+  params: Parameters<typeof stripe.paymentIntents.create>[0],
+  idempotencyKey: string,
+) {
+  try {
+    return await stripe.paymentIntents.create(params, { idempotencyKey });
+  } catch (error) {
+    console.error("Stripe paymentIntents.create retrying after error:", error);
+    return stripe.paymentIntents.create(params, { idempotencyKey });
   }
 }
