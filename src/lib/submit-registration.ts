@@ -9,16 +9,14 @@ import {
   type RegistrationPayload,
 } from "@/lib/registration";
 import { buildRegistrationSummaryText } from "@/lib/build-registration-summary";
-
-const WEBHOOK_URL =
-  process.env.REGISTER_WEBHOOK_URL ??
-  "https://waves.islaintel.com/api/v1/webhooks/oQwh7JAcfDrZ8CgUvymgO";
+import { REGISTER_WEBHOOK_URL } from "@/lib/webhooks";
 
 const INFO_EMAIL = "info@1ball1game.org";
 
 export type SubmitRegistrationOptions = {
-  paymentStatus: "paid" | "pending";
+  paymentStatus: "paid" | "pending" | "paid_client_confirmed";
   stripePaymentIntentId?: string;
+  stripeClientReferenceId?: string;
   submittedAt?: string;
   clientIp?: string;
 };
@@ -62,6 +60,111 @@ export function validateRegistrationPayload(
   return null;
 }
 
+export function buildRegistrationSheetRow(
+  payload: RegistrationPayload,
+  options: SubmitRegistrationOptions,
+) {
+  const { parent, players, volunteer, waivers, parentSignature } = payload;
+  const playerCount = players.length;
+  const totalCents = registrationTotalCents(playerCount);
+  const submittedAt = options.submittedAt ?? new Date().toISOString();
+  const clientIp = options.clientIp ?? "";
+
+  const registrationEmailBody = buildRegistrationSummaryText(payload, {
+    paymentStatus: options.paymentStatus,
+    stripePaymentIntentId: options.stripePaymentIntentId,
+    submittedAt,
+    clientIp,
+  });
+
+  const waiverSummary = WAIVERS.map(
+    (waiver) => `${waivers[waiver.key] ? "Agreed" : "Not agreed"}: ${waiver.title}`,
+  ).join("\n");
+
+  return {
+    submitted_at: submittedAt,
+    source: "1ball1game-website-register",
+    season: "Fall 2026",
+    parent_first_name: parent.firstName.trim(),
+    parent_last_name: parent.lastName.trim(),
+    parent_relationship: parent.relationship,
+    parent_email: parent.email.trim(),
+    parent_phone: parent.phone.trim(),
+    parent_street: parent.street.trim(),
+    parent_city: parent.city.trim(),
+    parent_state: parent.state.trim(),
+    parent_zip: parent.zip.trim(),
+    secondary_name: parent.secondaryName.trim(),
+    secondary_phone: parent.secondaryPhone.trim(),
+    secondary_email: parent.secondaryEmail.trim(),
+    parent_signature: parentSignature.trim(),
+    client_ip: clientIp,
+    player_count: playerCount,
+    total_cents: totalCents,
+    total_usd: (totalCents / 100).toFixed(2),
+    payment_status: options.paymentStatus,
+    stripe_payment_intent_id: options.stripePaymentIntentId ?? "",
+    stripe_client_reference_id: options.stripeClientReferenceId ?? "",
+    volunteer_role: volunteer.role,
+    volunteer_name: isVolunteering(volunteer.role) ? volunteer.name.trim() : "",
+    volunteer_shirt_size: isVolunteering(volunteer.role)
+      ? volunteer.shirtSize
+      : "",
+    waiver_program_administration: waivers.programAdministration,
+    waiver_liability_release: waivers.liabilityRelease,
+    waiver_photo_media: waivers.photoMedia,
+    waiver_code_of_conduct: waivers.codeOfConduct,
+    waiver_fundraising_agreement: waivers.fundraisingAgreement,
+    waiver_summary: waiverSummary,
+    players_json: JSON.stringify(players),
+    email_to: parent.email.trim(),
+    email_bcc: INFO_EMAIL,
+    notification_recipients: `${parent.email.trim()},${INFO_EMAIL}`,
+    registration_email_body: registrationEmailBody,
+    registration_email_subject: `New 1B1G registration — ${parent.firstName.trim()} ${parent.lastName.trim()}`,
+    ...flattenPlayers(players),
+  };
+}
+
+/** Browser-safe registration submit (static Amplify site → Waves). */
+export async function submitRegistrationClient(
+  payload: RegistrationPayload,
+  options: SubmitRegistrationOptions,
+) {
+  if (!REGISTER_WEBHOOK_URL) {
+    throw new Error("Registration webhook is not configured.");
+  }
+
+  const validationErrors = validateRegistrationPayload(payload, {
+    requireSignature: true,
+  });
+  if (validationErrors) {
+    throw new Error("Registration validation failed.");
+  }
+
+  const playerCount = payload.players.length;
+  if (playerCount < 1 || playerCount > MAX_PLAYERS) {
+    throw new Error("Invalid player count.");
+  }
+
+  const sheetRow = buildRegistrationSheetRow(payload, options);
+  const response = await fetch(REGISTER_WEBHOOK_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(sheetRow),
+  });
+
+  if (!response.ok) {
+    throw new Error("Unable to submit registration to webhook.");
+  }
+
+  return {
+    playerCount,
+    totalCents: registrationTotalCents(playerCount),
+    feePerPlayerCents: FEE_CENTS,
+  };
+}
+
 async function sendResendNotification(
   parentEmail: string,
   subject: string,
@@ -90,100 +193,17 @@ async function sendResendNotification(
   });
 }
 
+/** Server-side submit (optional webhook worker) including Resend email. */
 export async function submitRegistration(
   payload: RegistrationPayload,
   options: SubmitRegistrationOptions,
 ) {
-  if (!WEBHOOK_URL) {
-    throw new Error("Registration webhook is not configured.");
-  }
-
-  const validationErrors = validateRegistrationPayload(payload, {
-    requireSignature: true,
-  });
-  if (validationErrors) {
-    throw new Error("Registration validation failed.");
-  }
-
-  const { parent, players, volunteer, waivers, parentSignature } = payload;
-  const playerCount = players.length;
-  if (playerCount < 1 || playerCount > MAX_PLAYERS) {
-    throw new Error("Invalid player count.");
-  }
-
-  const totalCents = registrationTotalCents(playerCount);
-  const submittedAt = options.submittedAt ?? new Date().toISOString();
-  const clientIp = options.clientIp ?? "";
-
-  const registrationEmailBody = buildRegistrationSummaryText(payload, {
-    paymentStatus: options.paymentStatus,
-    stripePaymentIntentId: options.stripePaymentIntentId,
-    submittedAt,
-    clientIp,
-  });
-
-  const waiverSummary = WAIVERS.map(
-    (waiver) => `${waivers[waiver.key] ? "Agreed" : "Not agreed"}: ${waiver.title}`,
-  ).join("\n");
-
-  const sheetRow = {
-    submitted_at: submittedAt,
-    source: "1ball1game-website-register",
-    season: "Fall 2026",
-    parent_first_name: parent.firstName.trim(),
-    parent_last_name: parent.lastName.trim(),
-    parent_relationship: parent.relationship,
-    parent_email: parent.email.trim(),
-    parent_phone: parent.phone.trim(),
-    parent_street: parent.street.trim(),
-    parent_city: parent.city.trim(),
-    parent_state: parent.state.trim(),
-    parent_zip: parent.zip.trim(),
-    secondary_name: parent.secondaryName.trim(),
-    secondary_phone: parent.secondaryPhone.trim(),
-    secondary_email: parent.secondaryEmail.trim(),
-    parent_signature: parentSignature.trim(),
-    client_ip: clientIp,
-    player_count: playerCount,
-    total_cents: totalCents,
-    total_usd: (totalCents / 100).toFixed(2),
-    payment_status: options.paymentStatus,
-    stripe_payment_intent_id: options.stripePaymentIntentId ?? "",
-    volunteer_role: volunteer.role,
-    volunteer_name: isVolunteering(volunteer.role) ? volunteer.name.trim() : "",
-    volunteer_shirt_size: isVolunteering(volunteer.role)
-      ? volunteer.shirtSize
-      : "",
-    waiver_program_administration: waivers.programAdministration,
-    waiver_liability_release: waivers.liabilityRelease,
-    waiver_photo_media: waivers.photoMedia,
-    waiver_code_of_conduct: waivers.codeOfConduct,
-    waiver_fundraising_agreement: waivers.fundraisingAgreement,
-    waiver_summary: waiverSummary,
-    players_json: JSON.stringify(players),
-    email_to: parent.email.trim(),
-    email_bcc: INFO_EMAIL,
-    notification_recipients: `${parent.email.trim()},${INFO_EMAIL}`,
-    registration_email_body: registrationEmailBody,
-    registration_email_subject: `New 1B1G registration — ${parent.firstName.trim()} ${parent.lastName.trim()}`,
-    ...flattenPlayers(players),
-  };
-
-  const response = await fetch(WEBHOOK_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(sheetRow),
-  });
-
-  if (!response.ok) {
-    throw new Error("Unable to submit registration to webhook.");
-  }
-
+  const result = await submitRegistrationClient(payload, options);
+  const sheetRow = buildRegistrationSheetRow(payload, options);
   await sendResendNotification(
-    parent.email.trim(),
+    payload.parent.email.trim(),
     sheetRow.registration_email_subject,
-    registrationEmailBody,
+    sheetRow.registration_email_body,
   );
-
-  return { playerCount, totalCents, feePerPlayerCents: FEE_CENTS };
+  return result;
 }

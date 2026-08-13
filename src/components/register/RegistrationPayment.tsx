@@ -1,50 +1,15 @@
 "use client";
 
-import {
-  forwardRef,
-  useEffect,
-  useImperativeHandle,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import { loadStripe } from "@stripe/stripe-js";
-import {
-  Elements,
-  PaymentElement,
-  useElements,
-  useStripe,
-} from "@stripe/react-stripe-js";
+import { forwardRef, useEffect, useImperativeHandle } from "react";
 import { PaymentSection } from "@/components/register/PaymentSection";
-import type { RegistrationPayload } from "@/lib/registration";
-import { registrationFingerprint } from "@/lib/registration-idempotency";
-
-const stripePromise = loadStripe(
-  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "",
-);
-
-const stripeAppearance = {
-  theme: "stripe" as const,
-  variables: {
-    colorPrimary: "#e2269d",
-    colorBackground: "#ffffff",
-    colorText: "#0a1138",
-    colorDanger: "#b81a7e",
-    fontFamily: "system-ui, sans-serif",
-    borderRadius: "12px",
-    spacingUnit: "4px",
-  },
-  rules: {
-    ".Input": {
-      border: "1px solid rgba(10, 17, 56, 0.15)",
-      boxShadow: "none",
-    },
-    ".Input:focus": {
-      border: "1px solid #e2269d",
-      boxShadow: "none",
-    },
-  },
-};
+import { FEE_CENTS, type RegistrationPayload } from "@/lib/registration";
+import { registrationFingerprint } from "@/lib/registration-fingerprint";
+import { saveRegistrationDraft } from "@/lib/registration-draft";
+import {
+  buildStripeCheckoutUrl,
+  getStripePaymentLinkUrl,
+  hasPerCountPaymentLinks,
+} from "@/lib/stripe-payment-link";
 
 export type RegistrationPaymentHandle = {
   confirmPayment: (
@@ -61,197 +26,80 @@ type RegistrationPaymentProps = {
   onError?: (message: string) => void;
 };
 
-type PaymentFormProps = {
-  onReadyChange?: (ready: boolean) => void;
-  paymentIntentId: string | null;
-};
-
-const PaymentForm = forwardRef<RegistrationPaymentHandle, PaymentFormProps>(
-  function PaymentForm({ onReadyChange, paymentIntentId }, ref) {
-    const stripe = useStripe();
-    const elements = useElements();
-    const processingRef = useRef(false);
-
-    useImperativeHandle(ref, () => ({
-      isReady: () => Boolean(stripe && elements && paymentIntentId),
-      async confirmPayment(payload: RegistrationPayload) {
-        if (!stripe || !elements || !paymentIntentId) {
-          return { ok: false, error: "Payment form is still loading. Please wait." };
-        }
-        if (processingRef.current) {
-          return { ok: false, error: "Payment is already processing." };
-        }
-
-        processingRef.current = true;
-        try {
-          const syncResponse = await fetch("/api/stripe/sync-registration", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ paymentIntentId, payload }),
-          });
-          if (!syncResponse.ok) {
-            const data = (await syncResponse.json().catch(() => null)) as {
-              error?: string;
-            } | null;
-            return {
-              ok: false,
-              error: data?.error ?? "Unable to save your signature and registration details.",
-            };
-          }
-
-          const { error: submitError } = await elements.submit();
-          if (submitError) {
-            return {
-              ok: false,
-              error: submitError.message ?? "Please check your payment details.",
-            };
-          }
-
-          const { error, paymentIntent } = await stripe.confirmPayment({
-            elements,
-            redirect: "if_required",
-          });
-
-          if (error) {
-            return {
-              ok: false,
-              error: error.message ?? "Payment could not be completed.",
-            };
-          }
-
-          if (paymentIntent?.status !== "succeeded") {
-            return {
-              ok: false,
-              error: "Payment was not completed. Please try again.",
-            };
-          }
-
-          return { ok: true };
-        } finally {
-          processingRef.current = false;
-        }
-      },
-    }));
-
-    return (
-      <PaymentElement
-        onReady={() => onReadyChange?.(true)}
-        onLoadError={() => onReadyChange?.(false)}
-        options={{
-          layout: {
-            type: "accordion",
-            defaultCollapsed: false,
-          },
-          paymentMethodOrder: ["card"],
-          wallets: {
-            applePay: "never",
-            googlePay: "never",
-            link: "never",
-          },
-        }}
-      />
-    );
-  },
-);
-
+/**
+ * Hosted Stripe Payment Link checkout — no Amplify SSR / API routes required.
+ * Draft registration is saved to sessionStorage; after Stripe redirects back
+ * to /register/?paid=1 the form completes the Waves webhook submit.
+ */
 export const RegistrationPayment = forwardRef<
   RegistrationPaymentHandle,
   RegistrationPaymentProps
 >(function RegistrationPayment(
-  { payload, totalCents, playerCount, onReadyChange, onError },
+  { totalCents, playerCount, onReadyChange, onError },
   ref,
 ) {
-  const [clientSecret, setClientSecret] = useState<string | null>(null);
-  const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [elementReady, setElementReady] = useState(false);
-  const paymentFormRef = useRef<RegistrationPaymentHandle>(null);
-  const fingerprint = useMemo(
-    () => registrationFingerprint(payload),
-    [payload],
-  );
+  const paymentLinkUrl = getStripePaymentLinkUrl(playerCount);
+  const ready = Boolean(paymentLinkUrl);
+
+  useEffect(() => {
+    onReadyChange?.(ready);
+    if (!ready) {
+      onError?.(
+        "Payment is temporarily unavailable. Please email info@1ball1game.org.",
+      );
+    }
+  }, [ready, onReadyChange, onError]);
 
   useImperativeHandle(ref, () => ({
-    isReady: () =>
-      Boolean(clientSecret && elementReady && paymentFormRef.current?.isReady()),
-    confirmPayment: async (payload: RegistrationPayload) => {
-      if (!paymentFormRef.current) {
-        return { ok: false, error: "Payment form is still loading. Please wait." };
+    isReady: () => ready,
+    async confirmPayment(nextPayload: RegistrationPayload) {
+      const link = getStripePaymentLinkUrl(nextPayload.players.length);
+      if (!link) {
+        return {
+          ok: false,
+          error:
+            "Payment is temporarily unavailable. Please email info@1ball1game.org.",
+        };
       }
-      return paymentFormRef.current.confirmPayment(payload);
+
+      const fingerprint = registrationFingerprint(nextPayload);
+      saveRegistrationDraft({
+        payload: nextPayload,
+        fingerprint,
+        totalCents: nextPayload.players.length * FEE_CENTS,
+        savedAt: new Date().toISOString(),
+      });
+
+      window.location.assign(
+        buildStripeCheckoutUrl({
+          paymentLinkUrl: link,
+          email: nextPayload.parent.email,
+          clientReferenceId: fingerprint,
+        }),
+      );
+
+      return { ok: true };
     },
   }));
 
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setClientSecret(null);
-    setPaymentIntentId(null);
-    setElementReady(false);
-    onReadyChange?.(false);
-
-    async function createIntent() {
-      try {
-        const response = await fetch("/api/stripe/create-payment-intent", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-
-        const data = (await response.json().catch(() => null)) as {
-          clientSecret?: string;
-          paymentIntentId?: string;
-          alreadyPaid?: boolean;
-          error?: string;
-        } | null;
-
-        if (cancelled) return;
-
-        if (!response.ok || !data?.clientSecret || !data?.paymentIntentId) {
-          onError?.(data?.error ?? "Unable to load payment form.");
-          setLoading(false);
-          return;
-        }
-
-        setClientSecret(data.clientSecret);
-        setPaymentIntentId(data.paymentIntentId);
-        setLoading(false);
-      } catch {
-        if (!cancelled) {
-          onError?.("Unable to load payment form.");
-          setLoading(false);
-        }
-      }
-    }
-
-    createIntent();
-    return () => {
-      cancelled = true;
-    };
-  }, [fingerprint, onError, onReadyChange]);
-
-  useEffect(() => {
-    onReadyChange?.(Boolean(clientSecret && elementReady));
-  }, [clientSecret, elementReady, onReadyChange]);
-
   return (
     <PaymentSection playerCount={playerCount} totalCents={totalCents}>
-      {loading ? (
-        <p className="text-sm text-ink/50">Loading secure payment…</p>
-      ) : clientSecret ? (
-        <Elements
-          stripe={stripePromise}
-          options={{
-            clientSecret,
-            appearance: stripeAppearance,
-          }}
-        >
-          <PaymentForm
-            ref={paymentFormRef}
-            paymentIntentId={paymentIntentId}
-            onReadyChange={setElementReady}
-          />
-        </Elements>
+      {ready ? (
+        <div className="space-y-2 text-sm text-ink/70">
+          <p className="font-medium text-ink">Pay securely on Stripe Checkout</p>
+          <p>
+            Click <span className="font-semibold">Pay &amp; register</span> to
+            open Stripe&apos;s hosted payment page. Your registration details are
+            saved for when you return.
+          </p>
+          {!hasPerCountPaymentLinks() ? (
+            <p className="text-ink/55">
+              On Stripe, set the quantity to{" "}
+              <strong className="font-semibold text-ink/70">{playerCount}</strong>{" "}
+              so the total is correct.
+            </p>
+          ) : null}
+        </div>
       ) : (
         <p className="text-sm text-magenta-deep">
           Payment form unavailable. Please refresh or contact info@1ball1game.org.
