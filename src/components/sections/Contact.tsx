@@ -5,7 +5,6 @@ import { motion } from "framer-motion";
 import { TrackedSection } from "@/components/analytics/TrackedSection";
 import { Reveal } from "@/components/ui/Reveal";
 import { EVENTS, track } from "@/lib/analytics";
-import { CONTACT_WEBHOOK_URL } from "@/lib/webhooks";
 
 const CONTACT_EMAIL = "info@1ball1game.org";
 
@@ -42,22 +41,15 @@ export function Contact() {
     });
 
     try {
-      const response = await fetch(CONTACT_WEBHOOK_URL, {
+      const response = await fetch("/api/contact", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: form.name.trim(),
-          school: form.school.trim(),
-          phone: form.phone.trim(),
-          email: form.email.trim(),
-          message: form.message.trim(),
-          source: "1ball1game-website",
-          submitted_at: new Date().toISOString(),
-        }),
+        body: JSON.stringify(form),
       });
 
       if (!response.ok) {
-        throw new Error("Unable to send your message.");
+        const data = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(data?.error ?? "Unable to send your message.");
       }
 
       setStatus("success");

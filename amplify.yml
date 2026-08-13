@@ -7,14 +7,16 @@ frontend:
         - npm ci
     build:
       commands:
-        # Static export: only NEXT_PUBLIC_* values are needed at build time.
-        # Secret keys are not used by the CDN-hosted site (see /server for optional webhook).
+        # Seed production env from repo defaults, then merge Amplify console vars
         - cp .env.example .env.production
         - env | grep -e NEXT_PUBLIC_ >> .env.production || true
+        - env | grep -e CONTACT_WEBHOOK_URL >> .env.production || true
+        - env | grep -e REGISTER_WEBHOOK_URL >> .env.production || true
+        - env | grep -e STRIPE_SECRET_KEY >> .env.production || true
+        - env | grep -e STRIPE_WEBHOOK_SECRET >> .env.production || true
         - npm run build
   artifacts:
-    # next.config.ts sets output: "export" → HTML/CSS/JS in out/
-    baseDirectory: out
+    baseDirectory: .next
     files:
       - "**/*"
   cache:

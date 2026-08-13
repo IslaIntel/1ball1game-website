@@ -1,10 +1,6 @@
 "use client";
 
 import { FEE_CENTS, formatUsd, ptaReturnCents } from "@/lib/registration";
-import {
-  hasPerCountPaymentLinks,
-  isStripePaymentLinkConfigured,
-} from "@/lib/stripe-payment-link";
 
 type PaymentSectionProps = {
   playerCount: number;
@@ -19,7 +15,6 @@ export function PaymentSection({
 }: PaymentSectionProps) {
   const feeDisplay = formatUsd(FEE_CENTS).replace(".00", "");
   const ptaCents = ptaReturnCents(totalCents);
-  const linkReady = isStripePaymentLinkConfigured(playerCount);
 
   return (
     <div className="rounded-2xl border border-magenta/25 bg-magenta/5 p-5">
@@ -39,34 +34,7 @@ export function PaymentSection({
       </div>
 
       <div className="mt-5 min-h-[120px] rounded-xl border border-ink/10 bg-cloud p-4">
-        {children ?? (
-          linkReady ? (
-            <div className="space-y-2 text-sm text-ink/70">
-              <p className="font-medium text-ink">
-                Pay securely on Stripe Checkout
-              </p>
-              <p>
-                Click <span className="font-semibold">Pay &amp; register</span> to
-                open Stripe&apos;s hosted payment page. Card details never touch
-                this site.
-              </p>
-              {!hasPerCountPaymentLinks() ? (
-                <p className="text-ink/55">
-                  On Stripe, set the quantity to{" "}
-                  <strong className="font-semibold text-ink/70">
-                    {playerCount}
-                  </strong>{" "}
-                  so the total matches {formatUsd(totalCents)}.
-                </p>
-              ) : null}
-            </div>
-          ) : (
-            <p className="text-sm text-magenta-deep">
-              Payment is temporarily unavailable. Please email{" "}
-              info@1ball1game.org to register.
-            </p>
-          )
-        )}
+        {children}
       </div>
 
       <p className="mt-3 flex items-center gap-2 text-sm text-ink/60">

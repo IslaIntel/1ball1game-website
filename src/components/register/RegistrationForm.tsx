@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import {
   ADULT_SHIRT_SIZES,
   emptyParent,
@@ -39,11 +39,6 @@ import {
   type RegistrationPaymentHandle,
 } from "@/components/register/RegistrationPayment";
 import { EVENTS, track } from "@/lib/analytics";
-import {
-  clearRegistrationDraft,
-  loadRegistrationDraft,
-} from "@/lib/registration-draft";
-import { submitRegistrationClient } from "@/lib/submit-registration";
 
 const fieldClass =
   "w-full rounded-xl border border-ink/15 bg-cloud px-4 py-3 text-ink outline-none transition-colors placeholder:text-ink/35 focus:border-magenta";
@@ -94,9 +89,7 @@ export function RegistrationForm() {
     "programAdministration",
   );
   const [paymentReady, setPaymentReady] = useState(false);
-  const [returningFromCheckout, setReturningFromCheckout] = useState(false);
   const paymentRef = useRef<RegistrationPaymentHandle>(null);
-  const checkoutHandledRef = useRef(false);
 
   const totalCents = players.length * FEE_CENTS;
   const payload: RegistrationPayload = {
@@ -106,60 +99,6 @@ export function RegistrationForm() {
     waivers,
     parentSignature,
   };
-
-  // After Stripe Payment Link redirect (?paid=1), finish Waves submit from draft.
-  useEffect(() => {
-    if (typeof window === "undefined" || checkoutHandledRef.current) return;
-
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("paid") !== "1") return;
-
-    checkoutHandledRef.current = true;
-    const draft = loadRegistrationDraft();
-    if (!draft) {
-      setStatus("error");
-      setErrorMessage(
-        "We could not find your registration details after payment. Please contact info@1ball1game.org with your Stripe receipt.",
-      );
-      return;
-    }
-
-    setReturningFromCheckout(true);
-    setStatus("submitting");
-    setParent(draft.payload.parent);
-    setPlayers(draft.payload.players);
-    setVolunteer(draft.payload.volunteer);
-    setWaivers(draft.payload.waivers);
-    setParentSignature(draft.payload.parentSignature);
-
-    void (async () => {
-      try {
-        await submitRegistrationClient(draft.payload, {
-          paymentStatus: "paid_client_confirmed",
-          stripeClientReferenceId: draft.fingerprint,
-          stripePaymentIntentId: params.get("session_id") ?? undefined,
-        });
-        clearRegistrationDraft();
-        track(EVENTS.REGISTER_FORM_SUBMIT, {
-          player_count: draft.payload.players.length,
-          total_cents: draft.totalCents,
-          school: draft.payload.players[0]?.school,
-          volunteering: isVolunteering(draft.payload.volunteer.role),
-          checkout_return: true,
-        });
-        setStatus("success");
-        window.history.replaceState({}, "", "/register/");
-        window.scrollTo({ top: 0, behavior: "smooth" });
-      } catch {
-        setStatus("error");
-        setErrorMessage(
-          "Payment may have succeeded, but we could not save your registration. Please email info@1ball1game.org with your Stripe receipt.",
-        );
-      } finally {
-        setReturningFromCheckout(false);
-      }
-    })();
-  }, []);
 
   const updateParent = <K extends keyof ParentInfo>(key: K, value: ParentInfo[K]) => {
     setParent((prev) => ({ ...prev, [key]: value }));
@@ -225,8 +164,8 @@ export function RegistrationForm() {
       if (!result.ok) {
         throw new Error(result.error);
       }
-      // Payment Link redirects away; success UI loads on ?paid=1 return.
-      // Keep "submitting" state while the browser navigates to Stripe.
+      setStatus("success");
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (error) {
       setStatus("error");
       setErrorMessage(
@@ -243,20 +182,6 @@ export function RegistrationForm() {
         playerNames={players.map((p) => `${p.firstName} ${p.lastName}`).join(", ")}
         email={parent.email}
       />
-    );
-  }
-
-  if (returningFromCheckout && status === "submitting") {
-    return (
-      <div className="mx-auto max-w-lg rounded-3xl border border-ink/10 bg-cloud/80 px-8 py-16 text-center">
-        <p className="eyebrow text-magenta">Almost done</p>
-        <h1 className="mt-4 font-display text-3xl font-semibold text-ink">
-          Confirming your registration…
-        </h1>
-        <p className="mt-3 text-ink/60">
-          Thanks for paying. We&apos;re saving your roster details now.
-        </p>
-      </div>
     );
   }
 
@@ -450,8 +375,8 @@ export function RegistrationForm() {
                 className="rounded-full bg-magenta px-7 py-3 text-sm font-semibold text-cloud transition-colors hover:bg-magenta-deep disabled:opacity-60"
               >
                 {status === "submitting"
-                  ? "Redirecting to Stripe…"
-                  : `Pay & register · ${formatUsd(totalCents)}`}
+                  ? "Processing payment…"
+                  : `Submit registration · ${formatUsd(totalCents)}`}
               </button>
             )}
           </div>

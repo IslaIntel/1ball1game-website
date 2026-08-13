@@ -9,30 +9,17 @@ with PostHog analytics.
 
 ## Stack
 
-- **Next.js 15** (App Router, **static export**) + **React 19** + **TypeScript**
+- **Next.js 15** (App Router) + **React 19** + **TypeScript**
 - **Tailwind CSS v4** for the design system
 - **Framer Motion** for scroll-triggered and load animations
 - **PostHog** for product analytics
-- **AWS Amplify Hosting** (**static / CDN**, not SSR compute) for deployment
-- **Stripe Payment Links** for registration checkout (hosted by Stripe)
-
-## Why static (not Amplify SSR)
-
-Stripe registration originally used Next.js API routes (`/api/stripe/*`) on Amplify
-**WEB_COMPUTE** (SSR). When Amplify’s SSR environment failed — confirmed in
-hosting logs — `/register` and checkout went down with it.
-
-This site is now a **static export** (`output: "export"`). Pages are served from
-the CDN and do not depend on Amplify SSR compute. Checkout uses **Stripe Payment
-Links**; contact and registration data post directly to IslaIntel Waves webhooks
-from the browser.
+- **AWS Amplify Hosting** (SSR / WEB_COMPUTE) for deployment
 
 ## Getting started
 
 ```bash
 npm install
-cp .env.example .env.local
-# Set NEXT_PUBLIC_STRIPE_PAYMENT_LINK (or _1…_6) and webhook URLs as needed
+cp .env.example .env.local   # add your PostHog keys (optional)
 npm run dev
 ```
 
@@ -40,19 +27,13 @@ Visit http://localhost:3000.
 
 ## Deploy to AWS Amplify
 
-This repo includes an [`amplify.yml`](amplify.yml) build spec and [`.nvmrc`](.nvmrc) (Node 20).
+This repo includes an [`amplify.yml`](amplify.yml) build spec and [`.nvmrc`](.nvmrc) (Node 20) for Amplify Hosting compute (Next.js SSR).
 
-### 1. Platform must be static (`WEB`), not SSR (`WEB_COMPUTE`)
+### 1. Connect the repository
 
-If the Amplify app was previously **Next.js – SSR**, switch it to static hosting so
-compute outages cannot take the site down:
-
-```bash
-aws amplify update-app --app-id <APP_ID> --platform WEB --region <REGION>
-```
-
-In the Amplify console, confirm the framework is treated as a static site and the
-build uses this repo’s `amplify.yml` (`baseDirectory: out`).
+1. Open [AWS Amplify Console](https://console.aws.amazon.com/amplify/) → **Create new app** → **Host web app**.
+2. Connect your Git provider and select **`IslaIntel/1ball1game-website`**.
+3. Amplify should auto-detect **Next.js - SSR**. Confirm the build spec uses `amplify.yml`.
 
 ### 2. Environment variables
 
@@ -62,21 +43,12 @@ In Amplify → **App settings** → **Environment variables**, add:
 | -------- | -------- | ----------- |
 | `NEXT_PUBLIC_POSTHOG_KEY` | No | PostHog project API key |
 | `NEXT_PUBLIC_POSTHOG_HOST` | No | Defaults to `https://us.i.posthog.com` |
-| `NEXT_PUBLIC_CONTACT_WEBHOOK_URL` | No | Defaults to Waves contact webhook |
-| `NEXT_PUBLIC_REGISTER_WEBHOOK_URL` | No | Defaults to Waves registration webhook |
-| `NEXT_PUBLIC_STRIPE_PAYMENT_LINK_1`…`_6` | Recommended | One Payment Link per player count ($199 × N) |
-| `NEXT_PUBLIC_STRIPE_PAYMENT_LINK` | Alternative | Single adjustable-quantity Payment Link |
 
-### 3. Stripe Payment Link setup
+These are written to `.env.production` during the build via `amplify.yml`.
 
-1. Stripe Dashboard → **Payment Links** → create a product at **$199.00** (Fall 2026 registration).
-2. Prefer **six links** with quantity locked to 1–6, map them to `NEXT_PUBLIC_STRIPE_PAYMENT_LINK_1`…`_6`.
-3. Or one link with adjustable quantity 1–6 → `NEXT_PUBLIC_STRIPE_PAYMENT_LINK` (parents must set quantity on Stripe).
-4. After completion, redirect to: `https://1ball1game.org/register/?paid=1`
+### 3. Deploy
 
-### 4. Deploy
-
-Push to `main` — Amplify runs `npm ci` + `npm run build` and publishes the `out/` folder.
+Push to `main` — Amplify builds with `npm ci` and `npm run build`, then deploys the `.next` output.
 
 ### Local build check
 
@@ -84,7 +56,6 @@ Push to `main` — Amplify runs `npm ci` + `npm run build` and publishes the `ou
 nvm use
 npm ci
 npm run build
-npm start   # serves the static out/ folder
 ```
 
 ## Design system
@@ -130,13 +101,11 @@ development never breaks.
 
 ```
 src/
-  app/                  layout, global styles, pages (static)
+  app/                  layout, global styles, page composition
   components/
     analytics/          PostHog provider + section view tracking
-    register/           Fall 2026 registration wizard + Stripe Payment Link
     sections/           Nav, Hero, Marquee, About, Impact, WhyMatters,
-                        Program, WhyPartner, Contact, Footer
+                        Program, WhyPartner, Sponsorship, Contact, Footer
     ui/                 Reveal, AnimatedNumber, CTAButton, BallGlyph
-  lib/                  analytics, registration, webhooks, payment links
-server/                 optional webhook worker stub (not used by Amplify static)
+  lib/analytics.ts      event registry + safe track() helper
 ```
