@@ -58,13 +58,16 @@ function promotionIsRedeemable(promo: Stripe.PromotionCode) {
   ) {
     return "This scholarship code has already been used.";
   }
-  const coupon =
-    typeof promo.coupon === "string" ? null : promo.coupon;
-  if (coupon) {
+  const coupon = couponFromPromotion(promo);
+  if (coupon && typeof coupon !== "string") {
     const couponError = couponIsRedeemable(coupon);
     if (couponError) return couponError;
   }
   return null;
+}
+
+function couponFromPromotion(promo: Stripe.PromotionCode) {
+  return promo.promotion?.coupon ?? null;
 }
 
 function toLookup(
@@ -95,7 +98,7 @@ async function findPromotionCode(stripe: Stripe, code: string) {
   const listed = await stripe.promotionCodes.list({
     code,
     limit: 1,
-    expand: ["data.coupon"],
+    expand: ["data.promotion.coupon"],
   });
   return listed.data[0] ?? null;
 }
@@ -117,10 +120,14 @@ export async function lookupScholarshipCode(
     const redeemError = promotionIsRedeemable(promo);
     if (redeemError) return { ok: false, error: redeemError };
 
+    const attached = couponFromPromotion(promo);
+    if (!attached) {
+      return { ok: false, error: "This scholarship code is not valid." };
+    }
     const coupon =
-      typeof promo.coupon === "string"
-        ? await stripe.coupons.retrieve(promo.coupon)
-        : promo.coupon;
+      typeof attached === "string"
+        ? await stripe.coupons.retrieve(attached)
+        : attached;
     const lookup = toLookup(promo.code, coupon, subtotalCents, promo.id);
     const scholarshipError = assertFullScholarship(lookup);
     if (scholarshipError) return { ok: false, error: scholarshipError };
@@ -174,6 +181,7 @@ async function redeemViaInvoice(
     customer: customer.id,
     collection_method: "charge_automatically",
     auto_advance: false,
+    pending_invoice_items_behavior: "include",
     discounts: lookup.promotionCodeId
       ? [{ promotion_code: lookup.promotionCodeId }]
       : [{ coupon: lookup.couponId }],
