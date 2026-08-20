@@ -89,6 +89,7 @@ export function RegistrationForm() {
     "programAdministration",
   );
   const [paymentReady, setPaymentReady] = useState(false);
+  const [amountDueCents, setAmountDueCents] = useState(FEE_CENTS);
   const paymentRef = useRef<RegistrationPaymentHandle>(null);
 
   useEffect(() => {
@@ -107,6 +108,11 @@ export function RegistrationForm() {
   }, [step]);
 
   const totalCents = players.length * FEE_CENTS;
+
+  useEffect(() => {
+    setAmountDueCents(totalCents);
+  }, [totalCents]);
+
   const payload: RegistrationPayload = {
     parent,
     players,
@@ -170,6 +176,8 @@ export function RegistrationForm() {
     track(EVENTS.REGISTER_FORM_SUBMIT, {
       player_count: players.length,
       total_cents: totalCents,
+      amount_due_cents: amountDueCents,
+      scholarship: amountDueCents === 0,
       school: players[0]?.school,
       volunteering: isVolunteering(volunteer.role),
     });
@@ -186,7 +194,7 @@ export function RegistrationForm() {
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "Unable to complete payment. Please try again.",
+          : "Unable to complete registration. Please try again.",
       );
     }
   };
@@ -345,6 +353,7 @@ export function RegistrationForm() {
                   totalCents={totalCents}
                   playerCount={players.length}
                   onReadyChange={setPaymentReady}
+                  onAmountDueChange={setAmountDueCents}
                   onError={setErrorMessage}
                 />
               </>
@@ -390,8 +399,10 @@ export function RegistrationForm() {
                 className="rounded-full bg-magenta px-7 py-3 text-sm font-semibold text-cloud transition-colors hover:bg-magenta-deep disabled:opacity-60"
               >
                 {status === "submitting"
-                  ? "Processing payment…"
-                  : `Submit registration · ${formatUsd(totalCents)}`}
+                  ? amountDueCents === 0
+                    ? "Completing registration…"
+                    : "Processing payment…"
+                  : `Submit registration · ${formatUsd(amountDueCents)}`}
               </button>
             )}
           </div>

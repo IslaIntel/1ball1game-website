@@ -78,7 +78,7 @@ export const STEP_DESCRIPTIONS = [
   "Provide a separate emergency contact and medical response for each player.",
   "Your school’s PTA soccer club is powered by community volunteers.",
   "Open each section and select every acknowledgment before continuing.",
-  "Review your details, then complete payment to register.",
+  "Review your details, then pay or apply a scholarship code to register.",
 ] as const;
 
 /** Registration total in cents from player count (server-side source of truth). */

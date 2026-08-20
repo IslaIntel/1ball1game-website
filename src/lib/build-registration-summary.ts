@@ -11,12 +11,16 @@ export function buildRegistrationSummaryText(
   options: {
     paymentStatus: string;
     stripePaymentIntentId?: string;
+    stripeInvoiceId?: string;
+    couponCode?: string;
+    amountPaidCents?: number;
     submittedAt: string;
     clientIp?: string;
   },
 ) {
   const { parent, players, volunteer, waivers, parentSignature } = payload;
   const totalCents = registrationTotalCents(players.length);
+  const amountPaidCents = options.amountPaidCents ?? totalCents;
   const lines: string[] = [
     "New Fall 2026 soccer registration",
     "",
@@ -37,12 +41,21 @@ export function buildRegistrationSummaryText(
     "",
     "PLAYERS",
     `Count: ${players.length}`,
-    `Total due: ${formatUsd(totalCents)}`,
+    `Registration total: ${formatUsd(totalCents)}`,
+    `Amount paid: ${formatUsd(amountPaidCents)}`,
     `Payment status: ${options.paymentStatus}`,
   );
 
+  if (options.couponCode) {
+    lines.push(`Scholarship code: ${options.couponCode}`);
+  }
+
   if (options.stripePaymentIntentId) {
     lines.push(`Stripe payment ID: ${options.stripePaymentIntentId}`);
+  }
+
+  if (options.stripeInvoiceId) {
+    lines.push(`Stripe invoice ID: ${options.stripeInvoiceId}`);
   }
 
   players.forEach((player, i) => {

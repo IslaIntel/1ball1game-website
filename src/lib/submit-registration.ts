@@ -17,8 +17,11 @@ const WEBHOOK_URL =
 const INFO_EMAIL = "info@1ball1game.org";
 
 export type SubmitRegistrationOptions = {
-  paymentStatus: "paid" | "pending";
+  paymentStatus: "paid" | "pending" | "scholarship";
   stripePaymentIntentId?: string;
+  stripeInvoiceId?: string;
+  couponCode?: string;
+  amountPaidCents?: number;
   submittedAt?: string;
   clientIp?: string;
 };
@@ -115,9 +118,13 @@ export async function submitRegistration(
   const submittedAt = options.submittedAt ?? new Date().toISOString();
   const clientIp = options.clientIp ?? "";
 
+  const amountPaidCents = options.amountPaidCents ?? totalCents;
   const registrationEmailBody = buildRegistrationSummaryText(payload, {
     paymentStatus: options.paymentStatus,
     stripePaymentIntentId: options.stripePaymentIntentId,
+    stripeInvoiceId: options.stripeInvoiceId,
+    couponCode: options.couponCode,
+    amountPaidCents,
     submittedAt,
     clientIp,
   });
@@ -147,8 +154,12 @@ export async function submitRegistration(
     player_count: playerCount,
     total_cents: totalCents,
     total_usd: (totalCents / 100).toFixed(2),
+    amount_paid_cents: amountPaidCents,
+    amount_paid_usd: (amountPaidCents / 100).toFixed(2),
     payment_status: options.paymentStatus,
+    coupon_code: options.couponCode ?? "",
     stripe_payment_intent_id: options.stripePaymentIntentId ?? "",
+    stripe_invoice_id: options.stripeInvoiceId ?? "",
     volunteer_role: volunteer.role,
     volunteer_name: isVolunteering(volunteer.role) ? volunteer.name.trim() : "",
     volunteer_shirt_size: isVolunteering(volunteer.role)

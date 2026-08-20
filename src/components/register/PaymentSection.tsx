@@ -5,16 +5,23 @@ import { FEE_CENTS, formatUsd, ptaReturnCents } from "@/lib/registration";
 type PaymentSectionProps = {
   playerCount: number;
   totalCents: number;
+  amountDueCents?: number;
+  discountCents?: number;
+  couponCode?: string;
   children?: React.ReactNode;
 };
 
 export function PaymentSection({
   playerCount,
   totalCents,
+  amountDueCents = totalCents,
+  discountCents = 0,
+  couponCode,
   children,
 }: PaymentSectionProps) {
   const feeDisplay = formatUsd(FEE_CENTS).replace(".00", "");
   const ptaCents = ptaReturnCents(totalCents);
+  const scholarshipApplied = Boolean(couponCode && amountDueCents === 0);
 
   return (
     <div className="rounded-2xl border border-magenta/25 bg-magenta/5 p-5">
@@ -24,13 +31,25 @@ export function PaymentSection({
           <p>
             {playerCount} player{playerCount === 1 ? "" : "s"} × {feeDisplay}
           </p>
-          <p className="mt-1 text-sm font-medium text-magenta-deep">
-            ({formatUsd(ptaCents)} going right back to your school&apos;s PTA!)
+          {discountCents > 0 ? (
+            <p className="mt-1 text-sm font-medium text-magenta-deep">
+              Scholarship{couponCode ? ` · ${couponCode}` : ""} −
+              {formatUsd(discountCents)}
+            </p>
+          ) : (
+            <p className="mt-1 text-sm font-medium text-magenta-deep">
+              ({formatUsd(ptaCents)} going right back to your school&apos;s PTA!)
+            </p>
+          )}
+        </div>
+        <div className="shrink-0 text-right">
+          {discountCents > 0 ? (
+            <p className="text-sm text-ink/40 line-through">{formatUsd(totalCents)}</p>
+          ) : null}
+          <p className="font-display text-3xl font-semibold text-ink">
+            {formatUsd(amountDueCents)}
           </p>
         </div>
-        <p className="shrink-0 font-display text-3xl font-semibold text-ink">
-          {formatUsd(totalCents)}
-        </p>
       </div>
 
       <div className="mt-5 min-h-[120px] rounded-xl border border-ink/10 bg-cloud p-4">
@@ -53,15 +72,25 @@ export function PaymentSection({
           />
         </svg>
         <span>
-          Card payments are securely processed by{" "}
-          <strong className="font-semibold text-ink/70">Stripe</strong>. We never
-          store your card details.
+          {scholarshipApplied ? (
+            <>
+              This registration is covered by a one-time scholarship code. No
+              card payment is required.
+            </>
+          ) : (
+            <>
+              Card payments are securely processed by{" "}
+              <strong className="font-semibold text-ink/70">Stripe</strong>. We
+              never store your card details.
+            </>
+          )}
         </span>
       </p>
 
       <p className="mt-2 text-sm text-ink/60">
-        Payment completes your registration for the fall season. A confirmation
-        email will follow.
+        {scholarshipApplied
+          ? "Submitting completes your registration for the fall season. A confirmation email will follow."
+          : "Payment completes your registration for the fall season. A confirmation email will follow."}
       </p>
     </div>
   );
