@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { MAX_PLAYERS, type RegistrationPayload } from "@/lib/registration";
+import { registrationClosedResponse } from "@/lib/registration-guard";
 import { registrationFingerprint } from "@/lib/registration-idempotency";
 import { getClientIp } from "@/lib/client-ip";
 import { redeemScholarshipCode } from "@/lib/stripe-coupon";
@@ -12,6 +13,9 @@ type ScholarshipBody = {
 };
 
 export async function POST(request: Request) {
+  const closed = registrationClosedResponse();
+  if (closed) return closed;
+
   const stripe = getStripe();
   if (!stripe) {
     return NextResponse.json(

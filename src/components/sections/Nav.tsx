@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { CTAButton } from "@/components/ui/CTAButton";
+import { RegistrationCTA } from "@/components/ui/RegistrationCTA";
 import { EVENTS, track } from "@/lib/analytics";
 
 const LINKS = [
@@ -99,15 +100,12 @@ export function Nav() {
 
         <div className="flex items-center gap-2 sm:gap-3">
           <div className="hidden items-center gap-2 sm:flex">
-            <CTAButton
-              href="/register"
+            <RegistrationCTA
               marker="nav_register"
               location="nav"
-              variant="solid"
-              className="!px-6 !py-3 !text-[0.9rem] shadow-[0_8px_24px_-12px_rgba(226,38,157,0.55)]"
-            >
-              Register Now
-            </CTAButton>
+              className="!px-6 !py-3 !text-[0.9rem]"
+              openClassName="shadow-[0_8px_24px_-12px_rgba(226,38,157,0.55)]"
+            />
             <CTAButton
               href="#contact"
               marker="nav_contact"
@@ -128,15 +126,11 @@ export function Nav() {
             </CTAButton>
           </div>
           <div className="sm:hidden">
-            <CTAButton
-              href="/register"
+            <RegistrationCTA
               marker="nav_register_mobile_header"
               location="nav_mobile_header"
-              variant="solid"
               className="!px-5 !py-2.5 !text-sm"
-            >
-              Register Now
-            </CTAButton>
+            />
           </div>
           <button
             onClick={() => setOpen((v) => !v)}
@@ -186,15 +180,11 @@ export function Nav() {
               </a>
             ))}
             <div className="grid grid-cols-1 gap-3 pt-4 sm:grid-cols-2">
-              <CTAButton
-                href="/register"
+              <RegistrationCTA
                 marker="nav_register_mobile"
                 location="nav_mobile"
-                variant="solid"
                 className="w-full !py-3.5 !text-base sm:col-span-2"
-              >
-                Register Now
-              </CTAButton>
+              />
               <CTAButton
                 href="#contact"
                 marker="nav_contact_mobile"

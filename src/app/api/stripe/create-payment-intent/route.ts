@@ -4,6 +4,7 @@ import {
   registrationTotalCents,
   type RegistrationPayload,
 } from "@/lib/registration";
+import { registrationClosedResponse } from "@/lib/registration-guard";
 import { registrationFingerprint } from "@/lib/registration-idempotency";
 import { getClientIp } from "@/lib/client-ip";
 import { getStripe } from "@/lib/stripe";
@@ -16,6 +17,9 @@ import { validateRegistrationPayload } from "@/lib/submit-registration";
 type CreatePaymentIntentBody = RegistrationPayload;
 
 export async function POST(request: Request) {
+  const closed = registrationClosedResponse();
+  if (closed) return closed;
+
   const stripe = getStripe();
   if (!stripe) {
     return NextResponse.json(

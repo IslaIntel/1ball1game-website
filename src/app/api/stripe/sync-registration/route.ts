@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { RegistrationPayload } from "@/lib/registration";
+import { registrationClosedResponse } from "@/lib/registration-guard";
 import { encodeRegistrationMetadata } from "@/lib/registration-metadata";
 import { validateRegistrationPayload } from "@/lib/submit-registration";
 import { getClientIp } from "@/lib/client-ip";
@@ -11,6 +12,9 @@ type SyncBody = {
 };
 
 export async function POST(request: Request) {
+  const closed = registrationClosedResponse();
+  if (closed) return closed;
+
   const stripe = getStripe();
   if (!stripe) {
     return NextResponse.json({ error: "Payment is unavailable." }, { status: 503 });

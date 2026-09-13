@@ -25,6 +25,9 @@ export const EVENTS = {
 
   // Registration
   REGISTER_FORM_SUBMIT: "register:form_submit",
+  /** A closed-window visitor still tried the registration button. */
+  REGISTER_CLOSED_CTA_CLICK: "register:closed_cta_click",
+  REGISTER_CLOSED_VIEW: "register:closed_view",
 
   // Stat / impact engagement
   IMPACT_COUNTER_COMPLETE: "impact:counter_complete",

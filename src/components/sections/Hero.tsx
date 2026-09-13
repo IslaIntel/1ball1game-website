@@ -4,6 +4,12 @@ import Image from "next/image";
 import { useRef } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { CTAButton } from "@/components/ui/CTAButton";
+import { RegistrationCTA } from "@/components/ui/RegistrationCTA";
+import {
+  REGISTRATION_CONTACT_EMAIL,
+  REGISTRATION_OPEN,
+  REGISTRATION_SEASON,
+} from "@/lib/registration-status";
 
 const container = {
   hidden: {},
@@ -90,14 +96,12 @@ export function Hero() {
           </motion.p>
 
           <motion.div variants={item} className="mt-10 flex flex-wrap items-center gap-4">
-            <CTAButton
-              href="/register"
+            <RegistrationCTA
               marker="hero_register"
               location="hero"
-              className="!px-9 !py-4 !text-base shadow-[0_12px_40px_-16px_rgba(226,38,157,0.65)] sm:!text-lg"
-            >
-              Register Now
-            </CTAButton>
+              className="!px-9 !py-4 !text-base sm:!text-lg"
+              openClassName="shadow-[0_12px_40px_-16px_rgba(226,38,157,0.65)]"
+            />
             <CTAButton
               href="#partner"
               marker="hero_primary"
@@ -115,6 +119,19 @@ export function Hero() {
               See the impact
             </CTAButton>
           </motion.div>
+
+          {!REGISTRATION_OPEN ? (
+            <motion.p variants={item} className="mt-5 max-w-xl text-sm text-ink/55">
+              {REGISTRATION_SEASON} registration is closed. Email{" "}
+              <a
+                href={`mailto:${REGISTRATION_CONTACT_EMAIL}`}
+                className="font-medium text-magenta underline-offset-2 hover:underline"
+              >
+                {REGISTRATION_CONTACT_EMAIL}
+              </a>{" "}
+              to hear first when the next season opens.
+            </motion.p>
+          ) : null}
 
           <motion.div
             variants={item}

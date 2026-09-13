@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { MAX_PLAYERS } from "@/lib/registration";
+import { registrationClosedResponse } from "@/lib/registration-guard";
 import { lookupScholarshipCode } from "@/lib/stripe-coupon";
 import { getStripe } from "@/lib/stripe";
 
@@ -9,6 +10,9 @@ type ApplyCouponBody = {
 };
 
 export async function POST(request: Request) {
+  const closed = registrationClosedResponse();
+  if (closed) return closed;
+
   const stripe = getStripe();
   if (!stripe) {
     return NextResponse.json(
