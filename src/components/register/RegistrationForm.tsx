@@ -39,6 +39,7 @@ import {
   type RegistrationPaymentHandle,
 } from "@/components/register/RegistrationPayment";
 import { EVENTS, track } from "@/lib/analytics";
+import { REGISTRATION_SEASON } from "@/lib/registration-status";
 
 const fieldClass =
   "w-full rounded-xl border border-ink/15 bg-cloud px-4 py-3 text-ink outline-none transition-colors placeholder:text-ink/35 focus:border-magenta";
@@ -218,7 +219,7 @@ export function RegistrationForm() {
           <span className="h-px w-8 bg-magenta" />
           1 Ball 1 Game Foundation
         </Link>
-        <p className="eyebrow mt-8 text-ink/50">Fall 2026 · K–2</p>
+        <p className="eyebrow mt-8 text-ink/50">{REGISTRATION_SEASON} · K–2</p>
         <h1 className="mt-4 font-display text-[clamp(2.4rem,5vw,3.8rem)] font-semibold leading-[0.98] text-ink">
           Soccer <span className="text-magenta">registration</span> made simple.
         </h1>
@@ -703,7 +704,7 @@ function PlayersStep({
                 </select>
               </Field>
               <Field
-                label="Current grade (Fall 2026)"
+                label={`Current grade (${REGISTRATION_SEASON})`}
                 id={`player-${i}-grade`}
                 required
                 error={errors[`players.${i}.grade`]}

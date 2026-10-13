@@ -4,6 +4,7 @@ import {
   type RegistrationPayload,
 } from "@/lib/registration";
 import { encodeRegistrationMetadata } from "@/lib/registration-metadata";
+import { REGISTRATION_SEASON } from "@/lib/registration-status";
 
 const REUSABLE_STATUSES = new Set([
   "requires_payment_method",
@@ -12,7 +13,7 @@ const REUSABLE_STATUSES = new Set([
 ]);
 
 /** Bump this if create params change so stale Stripe idempotency keys cannot collide. */
-export const PAYMENT_INTENT_KEY_PREFIX = "reg_card_v2_";
+export const PAYMENT_INTENT_KEY_PREFIX = "reg_card_v3_";
 
 export function isStripeIdempotencyConflict(error: unknown) {
   if (!error || typeof error !== "object") return false;
@@ -39,7 +40,7 @@ export function stablePaymentIntentParams(options: {
     metadata: {
       player_count: String(options.playerCount),
       fee_per_player_cents: String(FEE_CENTS),
-      season: "Fall 2026",
+      season: REGISTRATION_SEASON,
       source: "1ball1game-website-register",
       registration_fingerprint: options.fingerprint,
       registration_submitted: "false",
@@ -55,7 +56,7 @@ export function extraPaymentIntentMetadata(
   return {
     player_count: String(payload.players.length),
     fee_per_player_cents: String(FEE_CENTS),
-    season: "Fall 2026",
+    season: REGISTRATION_SEASON,
     source: "1ball1game-website-register",
     registration_fingerprint: fingerprint,
     registration_submitted: "false",

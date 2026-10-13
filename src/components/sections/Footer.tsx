@@ -5,6 +5,7 @@ import { BallGlyph } from "@/components/ui/BallGlyph";
 import { EVENTS, track } from "@/lib/analytics";
 
 const LINKS = [
+  { label: "Register", href: "/register" },
   { label: "The Mission", href: "#about" },
   { label: "The Impact", href: "#impact" },
   { label: "Program", href: "#program" },

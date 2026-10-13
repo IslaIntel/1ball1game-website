@@ -14,6 +14,8 @@ frontend:
         - env | grep -e REGISTER_WEBHOOK_URL >> .env.production || true
         - env | grep -e STRIPE_SECRET_KEY >> .env.production || true
         - env | grep -e STRIPE_WEBHOOK_SECRET >> .env.production || true
+        # Spring 2027 is live. Unset or set false here when the window closes.
+        - export NEXT_PUBLIC_REGISTRATION_OPEN=true
         - npm run build
   artifacts:
     baseDirectory: .next

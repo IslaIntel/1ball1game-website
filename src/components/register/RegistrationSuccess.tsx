@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { REGISTRATION_SEASON } from "@/lib/registration-status";
 
 type RegistrationSuccessProps = {
   playerNames: string;
@@ -56,7 +57,7 @@ export function RegistrationSuccess({
             Registration received
           </span>
           <h1 className="mt-3 font-display text-3xl font-semibold text-ink sm:text-4xl">
-            Welcome to the Fall Soccer Season
+            Welcome to the {REGISTRATION_SEASON} Soccer Season
           </h1>
         </motion.div>
 
@@ -66,7 +67,7 @@ export function RegistrationSuccess({
             <p>
               Thank you for registering{" "}
               <strong className="text-ink">{playerNames}</strong> for the{" "}
-              <strong className="text-ink">1B1G Fall Soccer League</strong> in
+              <strong className="text-ink">1B1G {REGISTRATION_SEASON} Soccer League</strong> in
               partnership with your school&apos;s PTA! We are thrilled to welcome
               your family to the program and are excited to serve your school
               community.
@@ -123,14 +124,13 @@ export function RegistrationSuccess({
             <p className="text-ink/70">
               As teams form and we work around the schedules of our parent
               volunteer coaches, you will receive a detailed email with practice
-              times and rosters. Practices are set to begin the week of{" "}
-              <strong className="text-ink">September 14th</strong>, with games
-              played on Saturdays. Please keep an eye out for additional updates
-              from 1B1G and your PTA in the coming weeks.
+              times and rosters. Games are played on Saturdays. Please keep an
+              eye out for additional updates from 1B1G and your PTA in the
+              coming weeks.
             </p>
             <p className="text-ink/70">
-              Welcome to the club, and we look forward to an amazing fall season
-              together!
+              Welcome to the club, and we look forward to an amazing spring
+              season together!
             </p>
             <p className="text-ink/70">
               Best regards,

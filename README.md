@@ -41,6 +41,7 @@ In Amplify → **App settings** → **Environment variables**, add:
 
 | Variable | Required | Description |
 | -------- | -------- | ----------- |
+| `NEXT_PUBLIC_REGISTRATION_OPEN` | No | `true` opens the live form and Register Now links. `false` shows the closed state. Defaults to open. |
 | `NEXT_PUBLIC_POSTHOG_KEY` | No | PostHog project API key |
 | `NEXT_PUBLIC_POSTHOG_HOST` | No | Defaults to `https://us.i.posthog.com` |
 

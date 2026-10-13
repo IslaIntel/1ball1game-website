@@ -1,6 +1,7 @@
 "use client";
 
 import { FEE_CENTS, formatUsd, ptaReturnCents } from "@/lib/registration";
+import { REGISTRATION_SEASON } from "@/lib/registration-status";
 
 type PaymentSectionProps = {
   playerCount: number;
@@ -89,8 +90,8 @@ export function PaymentSection({
 
       <p className="mt-2 text-sm text-ink/60">
         {scholarshipApplied
-          ? "Submitting completes your registration for the fall season. A confirmation email will follow."
-          : "Payment completes your registration for the fall season. A confirmation email will follow."}
+          ? `Submitting completes your registration for the ${REGISTRATION_SEASON} season. A confirmation email will follow.`
+          : `Payment completes your registration for the ${REGISTRATION_SEASON} season. A confirmation email will follow.`}
       </p>
     </div>
   );
