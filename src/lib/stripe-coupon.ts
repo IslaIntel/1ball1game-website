@@ -1,5 +1,6 @@
 import type Stripe from "stripe";
 import { registrationTotalCents } from "@/lib/registration";
+import { REGISTRATION_SEASON } from "@/lib/registration-status";
 
 export type ScholarshipLookup = {
   code: string;
@@ -162,7 +163,7 @@ async function redeemViaInvoice(
     name: context.name,
     metadata: {
       source: "1ball1game-website-register",
-      season: "Fall 2026",
+      season: REGISTRATION_SEASON,
       registration_fingerprint: context.fingerprint,
       scholarship: "true",
     },
@@ -172,7 +173,7 @@ async function redeemViaInvoice(
     customer: customer.id,
     amount: registrationTotalCents(context.playerCount),
     currency: "usd",
-    description: `Fall 2026 soccer registration (${context.playerCount} player${
+    description: `${REGISTRATION_SEASON} soccer registration (${context.playerCount} player${
       context.playerCount === 1 ? "" : "s"
     })`,
   });
@@ -187,7 +188,7 @@ async function redeemViaInvoice(
       : [{ coupon: lookup.couponId }],
     metadata: {
       source: "1ball1game-website-register",
-      season: "Fall 2026",
+      season: REGISTRATION_SEASON,
       scholarship: "true",
       registration_fingerprint: context.fingerprint,
       coupon_code: lookup.code,

@@ -4,6 +4,8 @@ import Image from "next/image";
 import { motion } from "framer-motion";
 import { TrackedSection } from "@/components/analytics/TrackedSection";
 import { Reveal, RevealGroup } from "@/components/ui/Reveal";
+import { RegistrationCTA } from "@/components/ui/RegistrationCTA";
+import { REGISTRATION_OPEN, REGISTRATION_SEASON } from "@/lib/registration-status";
 
 const PILLARS = [
   {
@@ -96,6 +98,22 @@ export function Program() {
             </motion.div>
           ))}
         </RevealGroup>
+
+        <Reveal delay={0.1}>
+          <div className="mt-12 flex flex-col items-start gap-4 sm:flex-row sm:items-center">
+            <RegistrationCTA
+              marker="program_register"
+              location="program"
+              openClassName="shadow-[0_12px_40px_-16px_rgba(226,38,157,0.65)]"
+            />
+            {REGISTRATION_OPEN ? (
+              <p className="max-w-md text-sm leading-relaxed text-ink/60">
+                {REGISTRATION_SEASON} registration is open for Kindergarten through
+                2nd grade. Spots are first-come, first-served at each school.
+              </p>
+            ) : null}
+          </div>
+        </Reveal>
       </div>
     </TrackedSection>
   );

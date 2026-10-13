@@ -5,6 +5,8 @@ import { motion } from "framer-motion";
 import { TrackedSection } from "@/components/analytics/TrackedSection";
 import { Reveal } from "@/components/ui/Reveal";
 import { EVENTS, track } from "@/lib/analytics";
+import { RegistrationCTA } from "@/components/ui/RegistrationCTA";
+import { REGISTRATION_OPEN, REGISTRATION_SEASON } from "@/lib/registration-status";
 
 const CONTACT_EMAIL = "info@1ball1game.org";
 
@@ -107,6 +109,20 @@ export function Contact() {
             >
               {CONTACT_EMAIL}
             </a>
+          </Reveal>
+          <Reveal delay={0.2}>
+            <div className="mt-10 space-y-3">
+              {REGISTRATION_OPEN ? (
+                <p className="text-sm text-cloud/55">
+                  {REGISTRATION_SEASON} player registration is open now.
+                </p>
+              ) : null}
+              <RegistrationCTA
+                marker="contact_register"
+                location="contact"
+                openClassName="shadow-[0_12px_40px_-16px_rgba(226,38,157,0.65)]"
+              />
+            </div>
           </Reveal>
         </div>
 

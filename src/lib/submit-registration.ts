@@ -9,6 +9,7 @@ import {
   type RegistrationPayload,
 } from "@/lib/registration";
 import { buildRegistrationSummaryText } from "@/lib/build-registration-summary";
+import { REGISTRATION_SEASON } from "@/lib/registration-status";
 
 const WEBHOOK_URL =
   process.env.REGISTER_WEBHOOK_URL ??
@@ -136,7 +137,7 @@ export async function submitRegistration(
   const sheetRow = {
     submitted_at: submittedAt,
     source: "1ball1game-website-register",
-    season: "Fall 2026",
+    season: REGISTRATION_SEASON,
     parent_first_name: parent.firstName.trim(),
     parent_last_name: parent.lastName.trim(),
     parent_relationship: parent.relationship,

@@ -7,7 +7,7 @@ export const metadata: Metadata = REGISTRATION_OPEN
   ? {
       title: `${REGISTRATION_SEASON} Soccer Registration | 1 Ball 1 Game Foundation`,
       description:
-        "Register your K–2 player for the Fall 2026 school PTA soccer season. 75% of every fee goes back to participating school PTAs.",
+        `Register your K–2 player for the ${REGISTRATION_SEASON} school PTA soccer season. 75% of every fee goes back to participating school PTAs.`,
     }
   : {
       title: `Registration Closed | 1 Ball 1 Game Foundation`,

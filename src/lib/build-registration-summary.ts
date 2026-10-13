@@ -5,6 +5,7 @@ import {
   WAIVERS,
   type RegistrationPayload,
 } from "@/lib/registration";
+import { REGISTRATION_SEASON } from "@/lib/registration-status";
 
 export function buildRegistrationSummaryText(
   payload: RegistrationPayload,
@@ -22,7 +23,7 @@ export function buildRegistrationSummaryText(
   const totalCents = registrationTotalCents(players.length);
   const amountPaidCents = options.amountPaidCents ?? totalCents;
   const lines: string[] = [
-    "New Fall 2026 soccer registration",
+    `New ${REGISTRATION_SEASON} soccer registration`,
     "",
     "PARENT / GUARDIAN",
     `Name: ${parent.firstName} ${parent.lastName} (${parent.relationship})`,
