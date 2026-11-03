@@ -4,6 +4,7 @@ import { registrationClosedResponse } from "@/lib/registration-guard";
 import { encodeRegistrationMetadata } from "@/lib/registration-metadata";
 import { validateRegistrationPayload } from "@/lib/submit-registration";
 import { getClientIp } from "@/lib/client-ip";
+import { SPRING_SEASON } from "@/lib/registration-status";
 import { getStripe } from "@/lib/stripe";
 
 type SyncBody = {
@@ -30,6 +31,13 @@ export async function POST(request: Request) {
   const { paymentIntentId, payload } = body;
   if (!paymentIntentId || !payload) {
     return NextResponse.json({ error: "Incomplete request." }, { status: 400 });
+  }
+
+  if (payload.season === SPRING_SEASON) {
+    return NextResponse.json(
+      { error: "Spring 2027 registration does not require payment." },
+      { status: 400 },
+    );
   }
 
   const validationErrors = validateRegistrationPayload(payload, { requireSignature: true });

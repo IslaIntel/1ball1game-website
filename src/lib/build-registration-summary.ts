@@ -2,14 +2,14 @@ import {
   formatUsd,
   isVolunteering,
   registrationTotalCents,
+  SPRING_WAIVERS,
   WAIVERS,
   type RegistrationPayload,
 } from "@/lib/registration";
-import { REGISTRATION_SEASON } from "@/lib/registration-status";
-
 export function buildRegistrationSummaryText(
   payload: RegistrationPayload,
   options: {
+    season: string;
     paymentStatus: string;
     stripePaymentIntentId?: string;
     stripeInvoiceId?: string;
@@ -20,17 +20,21 @@ export function buildRegistrationSummaryText(
   },
 ) {
   const { parent, players, volunteer, waivers, parentSignature } = payload;
-  const totalCents = registrationTotalCents(players.length);
+  const complimentary = options.paymentStatus === "not_required";
+  const totalCents = complimentary ? 0 : registrationTotalCents(players.length);
   const amountPaidCents = options.amountPaidCents ?? totalCents;
   const lines: string[] = [
-    `New ${REGISTRATION_SEASON} soccer registration`,
+    `New ${options.season} soccer registration`,
     "",
     "PARENT / GUARDIAN",
     `Name: ${parent.firstName} ${parent.lastName} (${parent.relationship})`,
     `Email: ${parent.email}`,
     `Phone: ${parent.phone}`,
-    `Address: ${parent.street}, ${parent.city}, ${parent.state} ${parent.zip}`,
   ];
+
+  lines.push(
+    `Address: ${parent.street}, ${parent.city}, ${parent.state} ${parent.zip}`,
+  );
 
   if (parent.secondaryName.trim() || parent.secondaryPhone.trim() || parent.secondaryEmail.trim()) {
     lines.push(
@@ -38,14 +42,16 @@ export function buildRegistrationSummaryText(
     );
   }
 
-  lines.push(
-    "",
-    "PLAYERS",
-    `Count: ${players.length}`,
-    `Registration total: ${formatUsd(totalCents)}`,
-    `Amount paid: ${formatUsd(amountPaidCents)}`,
-    `Payment status: ${options.paymentStatus}`,
-  );
+  lines.push("", "PLAYERS", `Count: ${players.length}`, `Season: ${options.season}`);
+  if (complimentary) {
+    lines.push("Payment: Not required");
+  } else {
+    lines.push(
+      `Registration total: ${formatUsd(totalCents)}`,
+      `Amount paid: ${formatUsd(amountPaidCents)}`,
+      `Payment status: ${options.paymentStatus}`,
+    );
+  }
 
   if (options.couponCode) {
     lines.push(`Scholarship code: ${options.couponCode}`);
@@ -75,27 +81,21 @@ export function buildRegistrationSummaryText(
     );
   });
 
-  lines.push(
-    "",
-    "VOLUNTEER",
-    volunteer.role || "—",
-  );
-  if (isVolunteering(volunteer.role)) {
-    lines.push(`  Name: ${volunteer.name}`, `  Shirt size: ${volunteer.shirtSize}`);
+  if (volunteer.role.trim()) {
+    lines.push("", "VOLUNTEER", volunteer.role);
+    if (isVolunteering(volunteer.role)) {
+      lines.push(`  Name: ${volunteer.name}`, `  Shirt size: ${volunteer.shirtSize}`);
+    }
   }
 
   lines.push("", "WAIVERS ACKNOWLEDGED");
-  for (const waiver of WAIVERS) {
+  for (const waiver of complimentary ? SPRING_WAIVERS : WAIVERS) {
     lines.push(`  ${waivers[waiver.key] ? "✓" : "✗"} ${waiver.title}`);
   }
 
-  lines.push(
-    "",
-    "SIGNATURE",
-    `Typed signature: ${parentSignature.trim()}`,
-    "",
-    `Submitted: ${options.submittedAt}`,
-  );
+  lines.push("", "SIGNATURE", `Typed signature: ${parentSignature.trim()}`);
+
+  lines.push("", `Submitted: ${options.submittedAt}`);
 
   if (options.clientIp) {
     lines.push(`IP address: ${options.clientIp}`);

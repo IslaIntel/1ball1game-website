@@ -1,10 +1,7 @@
 import type Stripe from "stripe";
-import {
-  FEE_CENTS,
-  type RegistrationPayload,
-} from "@/lib/registration";
+import type { RegistrationPayload } from "@/lib/registration";
 import { encodeRegistrationMetadata } from "@/lib/registration-metadata";
-import { REGISTRATION_SEASON } from "@/lib/registration-status";
+import type { WinterStreetballPrice } from "@/lib/stripe-winter-product";
 
 const REUSABLE_STATUSES = new Set([
   "requires_payment_method",
@@ -13,7 +10,7 @@ const REUSABLE_STATUSES = new Set([
 ]);
 
 /** Bump this if create params change so stale Stripe idempotency keys cannot collide. */
-export const PAYMENT_INTENT_KEY_PREFIX = "reg_card_v3_";
+export const PAYMENT_INTENT_KEY_PREFIX = "reg_card_v5_";
 
 export function isStripeIdempotencyConflict(error: unknown) {
   if (!error || typeof error !== "object") return false;
@@ -31,16 +28,30 @@ export function stablePaymentIntentParams(options: {
   email: string;
   playerCount: number;
   fingerprint: string;
+  season: string;
+  price: WinterStreetballPrice;
 }): Stripe.PaymentIntentCreateParams {
   return {
     amount: options.amount,
     currency: "usd",
     receipt_email: options.email,
+    description: options.price.productName,
     payment_method_types: ["card"],
+    amount_details: {
+      line_items: [
+        {
+          product_name: options.price.productName,
+          quantity: options.playerCount,
+          unit_cost: options.price.unitAmount,
+        },
+      ],
+    },
     metadata: {
       player_count: String(options.playerCount),
-      fee_per_player_cents: String(FEE_CENTS),
-      season: REGISTRATION_SEASON,
+      fee_per_player_cents: String(options.price.unitAmount),
+      stripe_product_id: options.price.productId,
+      stripe_price_id: options.price.priceId,
+      season: options.season,
       source: "1ball1game-website-register",
       registration_fingerprint: options.fingerprint,
       registration_submitted: "false",
@@ -52,11 +63,18 @@ export function extraPaymentIntentMetadata(
   payload: RegistrationPayload,
   clientIp: string,
   fingerprint: string,
+  price?: WinterStreetballPrice,
 ): Stripe.MetadataParam {
   return {
     player_count: String(payload.players.length),
-    fee_per_player_cents: String(FEE_CENTS),
-    season: REGISTRATION_SEASON,
+    ...(price
+      ? {
+          fee_per_player_cents: String(price.unitAmount),
+          stripe_product_id: price.productId,
+          stripe_price_id: price.priceId,
+        }
+      : {}),
+    ...(payload.season ? { season: payload.season } : {}),
     source: "1ball1game-website-register",
     registration_fingerprint: fingerprint,
     registration_submitted: "false",
@@ -91,6 +109,8 @@ export async function createOrReusePaymentIntent(
     email: string;
     playerCount: number;
     fingerprint: string;
+    season: string;
+    price: WinterStreetballPrice;
   },
 ) {
   const params = stablePaymentIntentParams(options);
@@ -120,10 +140,11 @@ export async function syncPaymentIntentDetails(
   payload: RegistrationPayload,
   clientIp: string,
   fingerprint: string,
+  price?: WinterStreetballPrice,
 ) {
   try {
     await stripe.paymentIntents.update(paymentIntentId, {
-      metadata: extraPaymentIntentMetadata(payload, clientIp, fingerprint),
+      metadata: extraPaymentIntentMetadata(payload, clientIp, fingerprint, price),
     });
   } catch (error) {
     console.error("Stripe paymentIntents.update after create failed:", error);

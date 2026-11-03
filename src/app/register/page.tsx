@@ -1,13 +1,17 @@
 import type { Metadata } from "next";
-import { RegistrationForm } from "@/components/register/RegistrationForm";
+import { RegistrationFlow } from "@/components/register/RegistrationFlow";
 import { RegistrationClosed } from "@/components/register/RegistrationClosed";
 import { REGISTRATION_OPEN, REGISTRATION_SEASON } from "@/lib/registration-status";
 
+const openDescription =
+  "Choose Winter Indoor Streetball for paid registration, or Spring PTA Rec Soccer to share player information with no payment.";
+
 export const metadata: Metadata = REGISTRATION_OPEN
   ? {
-      title: `${REGISTRATION_SEASON} Soccer Registration | 1 Ball 1 Game Foundation`,
-      description:
-        `Register your K–2 player for the ${REGISTRATION_SEASON} school PTA soccer season. 75% of every fee goes back to participating school PTAs.`,
+      title: "Winter 2026 & Spring 2027 Soccer Registration | 1 Ball 1 Game Foundation",
+      description: openDescription,
+      openGraph: { description: openDescription },
+      twitter: { description: openDescription },
     }
   : {
       title: `Registration Closed | 1 Ball 1 Game Foundation`,
@@ -23,7 +27,7 @@ export default function RegisterPage() {
         <div className="absolute right-0 top-40 h-[28rem] w-[28rem] rounded-full bg-magenta/15 blur-[130px]" />
       </div>
       <div className="mx-auto max-w-7xl px-5 sm:px-8">
-        {REGISTRATION_OPEN ? <RegistrationForm /> : <RegistrationClosed />}
+        {REGISTRATION_OPEN ? <RegistrationFlow /> : <RegistrationClosed />}
       </div>
     </main>
   );

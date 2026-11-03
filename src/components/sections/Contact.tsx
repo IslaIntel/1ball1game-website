@@ -6,7 +6,7 @@ import { TrackedSection } from "@/components/analytics/TrackedSection";
 import { Reveal } from "@/components/ui/Reveal";
 import { EVENTS, track } from "@/lib/analytics";
 import { RegistrationCTA } from "@/components/ui/RegistrationCTA";
-import { REGISTRATION_OPEN, REGISTRATION_SEASON } from "@/lib/registration-status";
+import { REGISTRATION_OPEN } from "@/lib/registration-status";
 
 const CONTACT_EMAIL = "info@1ball1game.org";
 
@@ -114,7 +114,7 @@ export function Contact() {
             <div className="mt-10 space-y-3">
               {REGISTRATION_OPEN ? (
                 <p className="text-sm text-cloud/55">
-                  {REGISTRATION_SEASON} player registration is open now.
+                  Winter 2026 and Spring 2027 registration is open now.
                 </p>
               ) : null}
               <RegistrationCTA

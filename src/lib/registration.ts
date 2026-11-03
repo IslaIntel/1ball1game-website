@@ -1,4 +1,5 @@
-export const FEE_CENTS = 19900;
+/** Winter Indoor Streetball 2026, $175 per player. Checkout uses the Stripe product price. */
+export const FEE_CENTS = 17500;
 export const MAX_PLAYERS = 6;
 
 export const SCHOOLS = [
@@ -18,6 +19,16 @@ export const SCHOOLS = [
 ] as const;
 
 export const GRADES = ["Kindergarten", "1st Grade", "2nd Grade"] as const;
+export const WINTER_GRADES = ["2nd Grade", "3rd Grade", "4th Grade"] as const;
+export const SPRING_GRADES = [
+  "Kindergarten",
+  "1st Grade",
+  "2nd Grade",
+  "3rd Grade",
+  "4th Grade",
+  "5th Grade",
+  "6th Grade",
+] as const;
 
 export const GENDERS = ["Male", "Female", "Prefer not to say"] as const;
 
@@ -58,7 +69,6 @@ export const STEP_LABELS = [
   "Parent Info",
   "Players",
   "Medical",
-  "Volunteer",
   "Waivers",
   "Review",
 ] as const;
@@ -67,7 +77,6 @@ export const STEP_TITLES = [
   "Parent / guardian information",
   "Tell us about your player",
   "Medical & emergency information",
-  "Volunteer with your school community",
   "Review and acknowledge",
   "Confirm & pay",
 ] as const;
@@ -76,14 +85,13 @@ export const STEP_DESCRIPTIONS = [
   "We collect this once, even when you register multiple siblings.",
   "Register one player or add siblings to the same registration.",
   "Provide a separate emergency contact and medical response for each player.",
-  "Your school’s PTA soccer club is powered by community volunteers.",
   "Open each section and select every acknowledgment before continuing.",
   "Review your details, then pay or apply a scholarship code to register.",
 ] as const;
 
 /** Registration total in cents from player count (server-side source of truth). */
-export function registrationTotalCents(playerCount: number) {
-  return playerCount * FEE_CENTS;
+export function registrationTotalCents(playerCount: number, unitAmountCents = FEE_CENTS) {
+  return playerCount * unitAmountCents;
 }
 
 export const PTA_RETURN_RATE = 0.75;
@@ -144,6 +152,8 @@ export type RegistrationPayload = {
   volunteer: VolunteerInfo;
   waivers: Waivers;
   parentSignature: string;
+  /** Set when the family chooses a season. Omitted on older in-flight checkouts. */
+  season?: string;
 };
 
 export const emptyParent = (): ParentInfo => ({
@@ -199,26 +209,6 @@ export type WaiverDoc = {
 };
 
 export const WAIVERS: WaiverDoc[] = [
-  {
-    key: "programAdministration",
-    title: "Acknowledgment of Program Administration & Partnership",
-    affirmation:
-      "I have read, understood, and explicitly agree to the Program Administration Notice, acknowledging 1B1G’s non-operational status and the Surf Nation network inclusion.",
-    sections: [
-      {
-        heading: "Program Administration Notice:",
-        body: "I explicitly understand, recognize, and agree that the 1 Ball 1 Game Foundation (1B1G) is an independent, non-profit fundraising partner and educational consultant, and is not the owner, operator, organizer, manager, or supervisor of the youth soccer programs, practices, or match days.",
-      },
-      {
-        heading: "PTA Ownership & Control:",
-        body: "I acknowledge that by completing this registration, I am enrolling my child directly into my local elementary school’s Parent Teacher Association (PTA) Soccer Club, which retains exclusive administrative control, operational oversight, liability insurance coverage, and field/facility management.",
-      },
-      {
-        heading: "Inclusion Benefits:",
-        body: "I understand that this enrollment automatically registers my student into the 1B1G family and Surf Nation soccer network to grant our family access to premium coaching curriculum and player training modules. I acknowledge that 1B1G’s operational involvement is strictly limited to providing these complimentary soccer coaching modules, curriculum guides, and equipment to the parent volunteers selected by the operating PTA.",
-      },
-    ],
-  },
   {
     key: "liabilityRelease",
     title: "Comprehensive Liability Waiver, Release & Indemnity Agreement",
@@ -292,7 +282,32 @@ export const WAIVERS: WaiverDoc[] = [
     ],
     note: "The registration fee collected through this portal is processed by 1B1G in its capacity as a fundraising partner for your school’s PTA Soccer Club. All registration fees and fundraising contributions are strictly non-refundable, including in cases of player withdrawal, scheduling conflicts, injury, weather, field closures, or decisions made by the school administration or operating PTA.",
   },
+  {
+    key: "programAdministration",
+    title: "Program Administration & Facility Partnership",
+    affirmation:
+      "I have read, understood, and agree to the Program Administration & Facility Partnership terms, authorizing 1B1G and Surf Nation/Va Surf as the designated league and facility administrators.",
+    sections: [
+      {
+        heading: "",
+        body: "I understand and agree that this program operates as a community youth soccer co-sponsored by our local elementary school PTA and administered by 1 Ball 1 Game (1B1G) in affiliation with McLean Surf.",
+      },
+      {
+        heading: "",
+        body: "I acknowledge that 1B1G and Surf Nation/VaSurf serve as the authorized league administrators responsible for operational oversight, volunteer coach onboarding, technical curriculum, and facility scheduling. By completing this registration, I authorize 1B1G and Surf Nation/VaSurf to register our participation and submit required team rosters to Fairfax County Neighborhood and Community Services (NCS) and Fairfax County Public Schools (FCPS) for athletic field allocations and facility permits.",
+      },
+      {
+        heading: "",
+        body: "I understand that enrollment provides our family access to 1B1G developmental soccer curriculum, team equipment, and affiliated training resources supporting our community volunteer coaches and weekly match play.",
+      },
+    ],
+  },
 ];
+
+/** Spring omits the photo and fundraising waivers. */
+export const SPRING_WAIVERS: WaiverDoc[] = WAIVERS.filter(
+  (waiver) => waiver.key !== "photoMedia" && waiver.key !== "fundraisingAgreement",
+);
 
 export function formatUsd(cents: number) {
   return new Intl.NumberFormat("en-US", {
@@ -323,9 +338,10 @@ export type FieldErrors = Record<string, string>;
 export function validateStep(
   step: number,
   data: RegistrationPayload,
+  waiverDocs: readonly WaiverDoc[] = WAIVERS,
 ): FieldErrors {
   const errors: FieldErrors = {};
-  const { parent, players, volunteer, waivers } = data;
+  const { parent, players, waivers } = data;
 
   if (step === 0) {
     if (!parent.firstName.trim())
@@ -407,31 +423,63 @@ export function validateStep(
   }
 
   if (step === 3) {
-    if (!volunteer.role)
-      errors["volunteer.role"] = "Choose a volunteer option.";
-    if (isVolunteering(volunteer.role)) {
-      if (!volunteer.name.trim())
-        errors["volunteer.name"] = "Enter the volunteer’s name.";
-      if (!volunteer.shirtSize)
-        errors["volunteer.shirtSize"] = "Choose a volunteer shirt size.";
-    }
-  }
-
-  if (step === 4) {
-    for (const waiver of WAIVERS) {
+    for (const waiver of waiverDocs) {
       if (!waivers[waiver.key]) {
         errors[`waivers.${waiver.key}`] = "This acknowledgment is required.";
       }
     }
-    if (Object.keys(errors).length)
-      errors["waivers"] = "Five individual acknowledgments are required.";
+    if (Object.keys(errors).length) {
+      errors.waivers = `${waiverDocs.length} individual acknowledgments are required.`;
+    }
   }
 
-  if (step === 5) {
+  if (step === 4) {
     if (!data.parentSignature?.trim()) {
       errors.parentSignature = "Type your full name to sign before submitting.";
     }
   }
+
+  return errors;
+}
+
+/** Spring 2027: parent contact plus player details. No address, waivers, or payment. */
+export function validateSpringRegistration(data: RegistrationPayload): FieldErrors {
+  const errors: FieldErrors = {};
+  const { parent, players } = data;
+
+  if (!parent.firstName.trim())
+    errors["parent.firstName"] = "Enter the parent/guardian’s first name.";
+  if (!parent.lastName.trim())
+    errors["parent.lastName"] = "Enter the parent/guardian’s last name.";
+  if (!parent.relationship)
+    errors["parent.relationship"] = "Choose the relationship to the player.";
+  if (!parent.email.trim() || !isValidEmail(parent.email))
+    errors["parent.email"] = "Enter a valid email address with an @ symbol.";
+  if (!parent.phone.trim())
+    errors["parent.phone"] = "Enter a primary phone number.";
+  else if (!isValidPhone(parent.phone))
+    errors["parent.phone"] = "Enter a phone number with at least 10 digits.";
+
+  if (players.length < 1) {
+    errors.players = "Add at least one player.";
+  }
+  if (players.length > MAX_PLAYERS) {
+    errors.players = `You can register up to ${MAX_PLAYERS} players at a time.`;
+  }
+
+  players.forEach((player, i) => {
+    if (!player.firstName.trim())
+      errors[`players.${i}.firstName`] = "Enter the player’s first name.";
+    if (!player.lastName.trim())
+      errors[`players.${i}.lastName`] = "Enter the player’s last name.";
+    if (!player.dateOfBirth)
+      errors[`players.${i}.dateOfBirth`] = "Enter a date of birth.";
+    if (!player.gender) errors[`players.${i}.gender`] = "Choose a gender option.";
+    if (!player.grade) errors[`players.${i}.grade`] = "Choose a grade.";
+    if (!player.school) errors[`players.${i}.school`] = "Choose a school.";
+    if (!player.jerseySize)
+      errors[`players.${i}.jerseySize`] = "Choose a jersey size.";
+  });
 
   return errors;
 }

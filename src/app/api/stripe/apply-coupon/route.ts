@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { MAX_PLAYERS } from "@/lib/registration";
 import { registrationClosedResponse } from "@/lib/registration-guard";
 import { lookupScholarshipCode } from "@/lib/stripe-coupon";
+import { getWinterStreetballPrice } from "@/lib/stripe-winter-product";
 import { getStripe } from "@/lib/stripe";
 
 type ApplyCouponBody = {
@@ -34,10 +35,12 @@ export async function POST(request: Request) {
   }
 
   try {
+    const price = await getWinterStreetballPrice(stripe);
     const result = await lookupScholarshipCode(
       stripe,
       body.code ?? "",
       playerCount,
+      price.unitAmount,
     );
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: 400 });

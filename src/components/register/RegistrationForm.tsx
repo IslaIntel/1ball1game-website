@@ -4,7 +4,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import {
-  ADULT_SHIRT_SIZES,
   emptyParent,
   emptyPlayer,
   emptyVolunteer,
@@ -13,8 +12,9 @@ import {
   MAX_PLAYERS,
   formatUsd,
   GENDERS,
-  GRADES,
-  isVolunteering,
+  SPRING_GRADES,
+  SPRING_WAIVERS,
+  WINTER_GRADES,
   JERSEY_SIZES,
   RELATIONSHIPS,
   SCHOOLS,
@@ -25,12 +25,10 @@ import {
   type ParentInfo,
   type PlayerInfo,
   type RegistrationPayload,
-  type VolunteerInfo,
+  type WaiverDoc,
   type WaiverKey,
   type Waivers,
   validateStep,
-  VOLUNTEER_ROLES,
-  VOLUNTEER_ROLE_LABELS,
   WAIVERS,
 } from "@/lib/registration";
 import { RegistrationSuccess } from "@/components/register/RegistrationSuccess";
@@ -39,7 +37,7 @@ import {
   type RegistrationPaymentHandle,
 } from "@/components/register/RegistrationPayment";
 import { EVENTS, track } from "@/lib/analytics";
-import { REGISTRATION_SEASON } from "@/lib/registration-status";
+import { SPRING_SEASON, WINTER_SEASON } from "@/lib/registration-status";
 
 const fieldClass =
   "w-full rounded-xl border border-ink/15 bg-cloud px-4 py-3 text-ink outline-none transition-colors placeholder:text-ink/35 focus:border-magenta";
@@ -74,11 +72,21 @@ function Field({
   );
 }
 
-export function RegistrationForm() {
+export function RegistrationForm({
+  onChangeSeason,
+  season = WINTER_SEASON,
+  requiresPayment = true,
+}: {
+  onChangeSeason?: () => void;
+  season?: typeof WINTER_SEASON | typeof SPRING_SEASON;
+  requiresPayment?: boolean;
+}) {
+  const grades = requiresPayment ? WINTER_GRADES : SPRING_GRADES;
+  const waiverDocs = requiresPayment ? WAIVERS : SPRING_WAIVERS;
   const [step, setStep] = useState(0);
   const [parent, setParent] = useState(emptyParent);
   const [players, setPlayers] = useState<PlayerInfo[]>([emptyPlayer()]);
-  const [volunteer, setVolunteer] = useState(emptyVolunteer);
+  const volunteer = emptyVolunteer();
   const [waivers, setWaivers] = useState(emptyWaivers);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">(
@@ -87,7 +95,7 @@ export function RegistrationForm() {
   const [errorMessage, setErrorMessage] = useState("");
   const [parentSignature, setParentSignature] = useState("");
   const [openWaiver, setOpenWaiver] = useState<WaiverKey | null>(
-    "programAdministration",
+    "liabilityRelease",
   );
   const [paymentReady, setPaymentReady] = useState(false);
   const [amountDueCents, setAmountDueCents] = useState(FEE_CENTS);
@@ -120,6 +128,7 @@ export function RegistrationForm() {
     volunteer,
     waivers,
     parentSignature,
+    season,
   };
 
   const updateParent = <K extends keyof ParentInfo>(key: K, value: ParentInfo[K]) => {
@@ -136,15 +145,8 @@ export function RegistrationForm() {
     );
   };
 
-  const updateVolunteer = <K extends keyof VolunteerInfo>(
-    key: K,
-    value: VolunteerInfo[K],
-  ) => {
-    setVolunteer((prev) => ({ ...prev, [key]: value }));
-  };
-
   const goNext = () => {
-    const nextErrors = validateStep(step, payload);
+    const nextErrors = validateStep(step, payload, waiverDocs);
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) return;
     setStep((s) => Math.min(s + 1, STEP_LABELS.length - 1));
@@ -158,16 +160,15 @@ export function RegistrationForm() {
   };
 
   const handleSubmit = async () => {
-    const nextErrors = validateStep(4, payload);
-    const all = { ...nextErrors };
-    for (let i = 0; i <= 5; i++) Object.assign(all, validateStep(i, payload));
+    const all: FieldErrors = {};
+    for (let i = 0; i <= 4; i++) Object.assign(all, validateStep(i, payload, waiverDocs));
     setErrors(all);
     if (Object.keys(all).length) {
       setErrorMessage("Please complete all required fields before submitting.");
       return;
     }
 
-    if (!paymentRef.current?.isReady()) {
+    if (requiresPayment && !paymentRef.current?.isReady()) {
       setErrorMessage("Payment form is still loading. Please wait a moment.");
       return;
     }
@@ -175,18 +176,31 @@ export function RegistrationForm() {
     setStatus("submitting");
     setErrorMessage("");
     track(EVENTS.REGISTER_FORM_SUBMIT, {
+      season,
       player_count: players.length,
       total_cents: totalCents,
       amount_due_cents: amountDueCents,
       scholarship: amountDueCents === 0,
       school: players[0]?.school,
-      volunteering: isVolunteering(volunteer.role),
+      volunteering: false,
     });
 
     try {
-      const result = await paymentRef.current.confirmPayment(payload);
-      if (!result.ok) {
-        throw new Error(result.error);
+      if (requiresPayment) {
+        const result = await paymentRef.current!.confirmPayment(payload);
+        if (!result.ok) {
+          throw new Error(result.error);
+        }
+      } else {
+        const response = await fetch("/api/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = (await response.json().catch(() => null)) as { error?: string } | null;
+        if (!response.ok) {
+          throw new Error(data?.error || "Unable to save this registration.");
+        }
       }
       setStatus("success");
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -205,6 +219,8 @@ export function RegistrationForm() {
       <RegistrationSuccess
         playerNames={players.map((p) => `${p.firstName} ${p.lastName}`).join(", ")}
         email={parent.email}
+        season={season}
+        paid={requiresPayment}
       />
     );
   }
@@ -212,48 +228,54 @@ export function RegistrationForm() {
   return (
     <div className="grid gap-10 lg:grid-cols-12 lg:gap-12">
       <aside className="lg:col-span-5">
-        <Link
-          href="/"
-          className="inline-flex items-center gap-3 text-sm font-medium text-ink/70 transition-colors hover:text-ink"
-        >
-          <span className="h-px w-8 bg-magenta" />
-          1 Ball 1 Game Foundation
-        </Link>
-        <p className="eyebrow mt-8 text-ink/50">{REGISTRATION_SEASON} · K–2</p>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-3 text-sm font-medium text-ink/70 transition-colors hover:text-ink"
+          >
+            <span className="h-px w-8 bg-magenta" />
+            1 Ball 1 Game Foundation
+          </Link>
+          {onChangeSeason ? (
+            <button
+              type="button"
+              onClick={onChangeSeason}
+              className="text-sm font-semibold text-magenta underline-offset-2 hover:underline"
+            >
+              Choose a different season
+            </button>
+          ) : null}
+        </div>
+        <p className="eyebrow mt-8 text-ink/50">
+          {season} · {requiresPayment ? "2–4" : "K–6"}
+        </p>
         <h1 className="mt-4 font-display text-[clamp(2.4rem,5vw,3.8rem)] font-semibold leading-[0.98] text-ink">
           Soccer <span className="text-magenta">registration</span> made simple.
         </h1>
         <p className="mt-5 max-w-md text-base leading-relaxed text-ink/65">
-          Register your Kindergarten through 2nd-grade player for a fun,
-          community-driven season with their local school’s PTA Soccer Club.
+          {requiresPayment
+            ? "Register your 2nd through 4th graders for a fun, community-driven season with their local school’s PTA Soccer Club."
+            : "Returning in April, the PTA Soccer Rec Program brings the game back to the grass fields for a fun, parent-led spring season for Kindergarten through 6th grade. Please register today to express your interest so we can accurately request our county field allocations. NO PAYMENT REQUIRED TODAY - REGISTERING INTEREST ONLY. Practice dates and game days to be released in January."}
         </p>
-        <div className="mt-6 flex flex-wrap gap-3 text-sm font-semibold text-ink">
-          <span className="rounded-full border border-ink/10 bg-paper-2 px-4 py-2">
-            75% back to school PTAs
-          </span>
-          <span className="rounded-full border border-ink/10 bg-paper-2 px-4 py-2">
-            $199 per player
-          </span>
-        </div>
+        {requiresPayment ? (
+          <div className="mt-6 flex flex-wrap gap-3 text-sm font-semibold text-ink">
+            <span className="rounded-full border border-ink/10 bg-paper-2 px-4 py-2">
+              {formatUsd(FEE_CENTS).replace(".00", "")} per player
+            </span>
+          </div>
+        ) : null}
 
         <div className="relative mt-10 hidden overflow-hidden rounded-[2rem] rounded-tr-[5rem] border border-ink/10 lg:block">
           <div className="relative aspect-[4/5]">
             <Image
               src="/images/hero-soccer-k2.png"
-              alt="Kindergarten through second-grade children playing soccer"
+              alt="2nd through 4th grade children playing soccer"
               fill
               priority
               sizes="40vw"
               className="object-cover"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-ink/40 via-transparent to-transparent" />
-          </div>
-          <div className="absolute bottom-5 left-5 right-5 rounded-2xl border border-ink/10 bg-paper/95 p-4 backdrop-blur">
-            <div className="eyebrow text-magenta">Direct school impact</div>
-            <div className="mt-1 font-display text-3xl font-semibold text-ink">
-              75%
-            </div>
-            <p className="text-xs text-ink/60">of every fee goes back to school PTAs</p>
           </div>
         </div>
       </aside>
@@ -290,7 +312,11 @@ export function RegistrationForm() {
           <h2 className="mt-3 font-display text-2xl font-semibold text-ink sm:text-3xl">
             {STEP_TITLES[step]}
           </h2>
-          <p className="mt-2 text-ink/60">{STEP_DESCRIPTIONS[step]}</p>
+          <p className="mt-2 text-ink/60">
+            {!requiresPayment && step === 4
+              ? "Review your details, then submit. No payment is collected."
+              : STEP_DESCRIPTIONS[step]}
+          </p>
 
           <div className="mt-8 space-y-8" aria-live="polite">
             {step === 0 && (
@@ -301,6 +327,8 @@ export function RegistrationForm() {
                 players={players}
                 maxPlayers={MAX_PLAYERS}
                 errors={errors}
+                grades={grades}
+                season={season}
                 onChange={updatePlayer}
                 onAdd={() =>
                   setPlayers((p) =>
@@ -320,14 +348,8 @@ export function RegistrationForm() {
               />
             )}
             {step === 3 && (
-              <VolunteerStep
-                volunteer={volunteer}
-                errors={errors}
-                onChange={updateVolunteer}
-              />
-            )}
-            {step === 4 && (
               <WaiversStep
+                waiverDocs={waiverDocs}
                 waivers={waivers}
                 errors={errors}
                 openWaiver={openWaiver}
@@ -337,26 +359,28 @@ export function RegistrationForm() {
                 }
               />
             )}
-            {step === 5 && (
+            {step === 4 && (
               <>
                 <ReviewStep
                   parent={parent}
                   players={players}
-                  volunteer={volunteer}
+                  waiverDocs={waiverDocs}
                   waivers={waivers}
                   parentSignature={parentSignature}
                   signatureError={errors.parentSignature}
                   onSignatureChange={setParentSignature}
                 />
-                <RegistrationPayment
-                  ref={paymentRef}
-                  payload={payload}
-                  totalCents={totalCents}
-                  playerCount={players.length}
-                  onReadyChange={setPaymentReady}
-                  onAmountDueChange={setAmountDueCents}
-                  onError={setErrorMessage}
-                />
+                {requiresPayment ? (
+                  <RegistrationPayment
+                    ref={paymentRef}
+                    payload={payload}
+                    totalCents={totalCents}
+                    playerCount={players.length}
+                    onReadyChange={setPaymentReady}
+                    onAmountDueChange={setAmountDueCents}
+                    onError={setErrorMessage}
+                  />
+                ) : null}
               </>
             )}
           </div>
@@ -396,14 +420,18 @@ export function RegistrationForm() {
               <button
                 type="button"
                 onClick={handleSubmit}
-                disabled={status === "submitting" || !paymentReady}
+                disabled={status === "submitting" || (requiresPayment && !paymentReady)}
                 className="rounded-full bg-magenta px-7 py-3 text-sm font-semibold text-cloud transition-colors hover:bg-magenta-deep disabled:opacity-60"
               >
                 {status === "submitting"
-                  ? amountDueCents === 0
-                    ? "Completing registration…"
-                    : "Processing payment…"
-                  : `Submit registration · ${formatUsd(amountDueCents)}`}
+                  ? requiresPayment
+                    ? amountDueCents === 0
+                      ? "Completing registration…"
+                      : "Processing payment…"
+                    : "Submitting registration…"
+                  : requiresPayment
+                    ? `Submit registration · ${formatUsd(amountDueCents)}`
+                    : "Submit registration"}
               </button>
             )}
           </div>
@@ -604,6 +632,8 @@ function ParentStep({
 function PlayersStep({
   players,
   maxPlayers,
+  grades,
+  season,
   errors,
   onChange,
   onAdd,
@@ -611,6 +641,8 @@ function PlayersStep({
 }: {
   players: PlayerInfo[];
   maxPlayers: number;
+  grades: readonly string[];
+  season: string;
   errors: FieldErrors;
   onChange: <K extends keyof PlayerInfo>(
     index: number,
@@ -704,7 +736,7 @@ function PlayersStep({
                 </select>
               </Field>
               <Field
-                label={`Current grade (${REGISTRATION_SEASON})`}
+                label={`Current grade (${season})`}
                 id={`player-${i}-grade`}
                 required
                 error={errors[`players.${i}.grade`]}
@@ -716,7 +748,7 @@ function PlayersStep({
                   onChange={(e) => onChange(i, "grade", e.target.value)}
                 >
                   <option value="">Select an option</option>
-                  {GRADES.map((g) => (
+                  {grades.map((g) => (
                     <option key={g} value={g}>
                       {g}
                     </option>
@@ -764,7 +796,7 @@ function PlayersStep({
                 </select>
               </Field>
               <Field
-                label="Friend or coach request"
+                label="Buddy request"
                 id={`player-${i}-buddy`}
                 hint="Optional. Buddy requests are not guaranteed."
               >
@@ -907,97 +939,15 @@ function MedicalStep({
   );
 }
 
-function VolunteerStep({
-  volunteer,
-  errors,
-  onChange,
-}: {
-  volunteer: VolunteerInfo;
-  errors: FieldErrors;
-  onChange: <K extends keyof VolunteerInfo>(
-    key: K,
-    value: VolunteerInfo[K],
-  ) => void;
-}) {
-  return (
-    <section className="space-y-6">
-      <div className="rounded-2xl border border-magenta/20 bg-magenta/5 p-5">
-        <strong className="text-ink">Community makes the season possible.</strong>
-        <p className="mt-1 text-sm text-ink/65">
-          No soccer experience is required for coaching roles, and guidance is
-          provided. Head coaches receive a 50% registration refund and assistant
-          coaches receive a 20% refund if selected for the role by your school’s
-          PTA — refunds are processed after selections are made.
-        </p>
-      </div>
-      <Field
-        label="Would you like to volunteer to be a coach or assistant coach?"
-        id="volunteer-role"
-        required
-        error={errors["volunteer.role"]}
-      >
-        <select
-          id="volunteer-role"
-          className={fieldClass}
-          value={volunteer.role}
-          onChange={(e) => onChange("role", e.target.value)}
-        >
-          <option value="">Select an option</option>
-          {VOLUNTEER_ROLES.map((r) => (
-            <option key={r} value={r}>
-              {VOLUNTEER_ROLE_LABELS[r]}
-            </option>
-          ))}
-        </select>
-      </Field>
-      {isVolunteering(volunteer.role) ? (
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field
-            label="Volunteer name"
-            id="volunteer-name"
-            required
-            error={errors["volunteer.name"]}
-          >
-            <input
-              id="volunteer-name"
-              className={fieldClass}
-              value={volunteer.name}
-              onChange={(e) => onChange("name", e.target.value)}
-            />
-          </Field>
-          <Field
-            label="Volunteer shirt size"
-            id="volunteer-shirt"
-            required
-            error={errors["volunteer.shirtSize"]}
-          >
-            <select
-              id="volunteer-shirt"
-              className={fieldClass}
-              value={volunteer.shirtSize}
-              onChange={(e) => onChange("shirtSize", e.target.value)}
-            >
-              <option value="">Select an option</option>
-              {ADULT_SHIRT_SIZES.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </Field>
-        </div>
-      ) : null}
-    </section>
-  );
-}
-
 function WaiversStep({
+  waiverDocs,
   waivers,
   errors,
   openWaiver,
   setOpenWaiver,
   onToggle,
 }: {
+  waiverDocs: readonly WaiverDoc[];
   waivers: Waivers;
   errors: FieldErrors;
   openWaiver: WaiverKey | null;
@@ -1007,7 +957,7 @@ function WaiversStep({
   return (
     <section className="space-y-4">
       {errors.waivers ? <p className={errorClass}>{errors.waivers}</p> : null}
-      {WAIVERS.map((waiver) => {
+      {waiverDocs.map((waiver) => {
         const open = openWaiver === waiver.key;
         return (
           <div
@@ -1028,9 +978,13 @@ function WaiversStep({
             </button>
             {open ? (
               <div className="space-y-4 border-t border-ink/10 px-5 py-5 text-sm leading-relaxed text-ink/70">
-                {waiver.sections.map((section) => (
-                  <p key={section.heading}>
-                    <strong className="text-ink">{section.heading}</strong>{" "}
+                {waiver.sections.map((section, index) => (
+                  <p key={`${waiver.key}-${index}`}>
+                    {section.heading ? (
+                      <>
+                        <strong className="text-ink">{section.heading}</strong>{" "}
+                      </>
+                    ) : null}
                     {section.body}
                   </p>
                 ))}
@@ -1059,7 +1013,7 @@ function WaiversStep({
 function ReviewStep({
   parent,
   players,
-  volunteer,
+  waiverDocs,
   waivers,
   parentSignature,
   signatureError,
@@ -1067,7 +1021,7 @@ function ReviewStep({
 }: {
   parent: ParentInfo;
   players: PlayerInfo[];
-  volunteer: VolunteerInfo;
+  waiverDocs: readonly WaiverDoc[];
   waivers: Waivers;
   parentSignature: string;
   signatureError?: string;
@@ -1142,21 +1096,11 @@ function ReviewStep({
       </div>
 
       <div className="rounded-2xl border border-ink/10 bg-paper/60 p-5">
-        <h3 className="font-display text-xl font-semibold text-ink">Volunteer</h3>
-        <p className="mt-2 text-sm text-ink/70">
-          {volunteer.role || "—"}
-          {isVolunteering(volunteer.role)
-            ? ` · ${volunteer.name} · ${volunteer.shirtSize}`
-            : null}
-        </p>
-      </div>
-
-      <div className="rounded-2xl border border-ink/10 bg-paper/60 p-5">
         <h3 className="font-display text-xl font-semibold text-ink">
           Waivers acknowledged
         </h3>
         <ul className="mt-3 space-y-2 text-sm text-ink/70">
-          {WAIVERS.map((waiver) => (
+          {waiverDocs.map((waiver) => (
             <li key={waiver.key} className="flex items-start gap-2">
               <span
                 className={

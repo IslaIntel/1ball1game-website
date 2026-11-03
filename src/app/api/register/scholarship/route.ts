@@ -5,6 +5,7 @@ import { registrationFingerprint } from "@/lib/registration-idempotency";
 import { getClientIp } from "@/lib/client-ip";
 import { redeemScholarshipCode } from "@/lib/stripe-coupon";
 import { submitRegistration, validateRegistrationPayload } from "@/lib/submit-registration";
+import { SPRING_SEASON, WINTER_SEASON } from "@/lib/registration-status";
 import { getStripe } from "@/lib/stripe";
 
 type ScholarshipBody = {
@@ -36,6 +37,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Incomplete scholarship request." }, { status: 400 });
   }
 
+  if (payload.season === SPRING_SEASON) {
+    return NextResponse.json(
+      { error: "Spring 2027 registration does not require a scholarship code." },
+      { status: 400 },
+    );
+  }
+
+  if (payload.season !== WINTER_SEASON) {
+    return NextResponse.json(
+      { error: "Choose Winter 2026 before applying a scholarship code." },
+      { status: 400 },
+    );
+  }
+
   const validationErrors = validateRegistrationPayload(payload, {
     requireSignature: true,
   });
@@ -60,6 +75,7 @@ export async function POST(request: Request) {
       email: payload.parent.email.trim(),
       name: parentName,
       fingerprint,
+      season: WINTER_SEASON,
     });
   } catch (error) {
     console.error("Scholarship code redemption failed:", error);
@@ -74,8 +90,9 @@ export async function POST(request: Request) {
   }
 
   try {
-    await submitRegistration(payload, {
+    await submitRegistration({ ...payload, season: WINTER_SEASON }, {
       paymentStatus: "scholarship",
+      season: WINTER_SEASON,
       couponCode: redeemed.result.code,
       stripeInvoiceId: redeemed.result.invoiceId,
       amountPaidCents: 0,

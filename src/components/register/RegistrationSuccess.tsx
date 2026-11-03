@@ -3,11 +3,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { REGISTRATION_SEASON } from "@/lib/registration-status";
-
 type RegistrationSuccessProps = {
   playerNames: string;
   email: string;
+  season: string;
+  paid?: boolean;
 };
 
 const fadeUp = {
@@ -22,6 +22,8 @@ const fadeUp = {
 export function RegistrationSuccess({
   playerNames,
   email,
+  season,
+  paid = true,
 }: RegistrationSuccessProps) {
   return (
     <motion.div
@@ -57,7 +59,7 @@ export function RegistrationSuccess({
             Registration received
           </span>
           <h1 className="mt-3 font-display text-3xl font-semibold text-ink sm:text-4xl">
-            Welcome to the {REGISTRATION_SEASON} Soccer Season
+            Welcome to the {season} Soccer Season
           </h1>
         </motion.div>
 
@@ -67,7 +69,7 @@ export function RegistrationSuccess({
             <p>
               Thank you for registering{" "}
               <strong className="text-ink">{playerNames}</strong> for the{" "}
-              <strong className="text-ink">1B1G {REGISTRATION_SEASON} Soccer League</strong> in
+              <strong className="text-ink">1B1G {season} Soccer League</strong> in
               partnership with your school&apos;s PTA! We are thrilled to welcome
               your family to the program and are excited to serve your school
               community.
@@ -83,12 +85,20 @@ export function RegistrationSuccess({
               welcoming, fun, and engaging soccer environment possible for our
               players.
             </p>
-            <p>
-              Here is a look at what your active registration includes through
-              1B1G and Surf Soccer:
-            </p>
+            {paid ? (
+              <p>
+                Here is a look at what your active registration includes through
+                1B1G and Surf Soccer:
+              </p>
+            ) : (
+              <p>
+                No payment was collected. We have your player information for{" "}
+                {season} and will follow up by email as the season comes together.
+              </p>
+            )}
           </motion.div>
 
+          {paid ? (
           <motion.div
             custom={2}
             variants={fadeUp}
@@ -105,17 +115,8 @@ export function RegistrationSuccess({
                 their platform.
               </p>
             </div>
-            <div>
-              <h2 className="font-semibold text-magenta-deep">
-                Direct Equipment Support for Your School
-              </h2>
-              <p className="mt-1.5 text-sm leading-relaxed text-ink/70">
-                To keep as many of your registration dollars in your school as
-                possible, 1B1G and Surf Soccer are making a donation of balls,
-                pinnies, goals, and cones directly to your school&apos;s program.
-              </p>
-            </div>
           </motion.div>
+          ) : null}
 
           <motion.div custom={3} variants={fadeUp} className="space-y-3">
             <h2 className="font-display text-2xl font-semibold text-ink">
@@ -129,7 +130,8 @@ export function RegistrationSuccess({
               coming weeks.
             </p>
             <p className="text-ink/70">
-              Welcome to the club, and we look forward to an amazing spring
+              Welcome to the club, and we look forward to an amazing{" "}
+              {season.toLowerCase().includes("winter") ? "winter" : "spring"}{" "}
               season together!
             </p>
             <p className="text-ink/70">

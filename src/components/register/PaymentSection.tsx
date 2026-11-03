@@ -1,7 +1,7 @@
 "use client";
 
-import { FEE_CENTS, formatUsd, ptaReturnCents } from "@/lib/registration";
-import { REGISTRATION_SEASON } from "@/lib/registration-status";
+import { FEE_CENTS, formatUsd } from "@/lib/registration";
+import { WINTER_SEASON } from "@/lib/registration-status";
 
 type PaymentSectionProps = {
   playerCount: number;
@@ -21,7 +21,6 @@ export function PaymentSection({
   children,
 }: PaymentSectionProps) {
   const feeDisplay = formatUsd(FEE_CENTS).replace(".00", "");
-  const ptaCents = ptaReturnCents(totalCents);
   const scholarshipApplied = Boolean(couponCode && amountDueCents === 0);
 
   return (
@@ -37,11 +36,7 @@ export function PaymentSection({
               Scholarship{couponCode ? ` · ${couponCode}` : ""} −
               {formatUsd(discountCents)}
             </p>
-          ) : (
-            <p className="mt-1 text-sm font-medium text-magenta-deep">
-              ({formatUsd(ptaCents)} going right back to your school&apos;s PTA!)
-            </p>
-          )}
+          ) : null}
         </div>
         <div className="shrink-0 text-right">
           {discountCents > 0 ? (
@@ -90,8 +85,8 @@ export function PaymentSection({
 
       <p className="mt-2 text-sm text-ink/60">
         {scholarshipApplied
-          ? `Submitting completes your registration for the ${REGISTRATION_SEASON} season. A confirmation email will follow.`
-          : `Payment completes your registration for the ${REGISTRATION_SEASON} season. A confirmation email will follow.`}
+          ? `Submitting completes your registration for the ${WINTER_SEASON} season. A confirmation email will follow.`
+          : `Payment completes your registration for the ${WINTER_SEASON} season. A confirmation email will follow.`}
       </p>
     </div>
   );

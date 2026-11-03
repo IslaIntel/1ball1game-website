@@ -1,9 +1,5 @@
 import { NextResponse } from "next/server";
-import {
-  MAX_PLAYERS,
-  registrationTotalCents,
-  type RegistrationPayload,
-} from "@/lib/registration";
+import { MAX_PLAYERS, type RegistrationPayload } from "@/lib/registration";
 import { registrationClosedResponse } from "@/lib/registration-guard";
 import { registrationFingerprint } from "@/lib/registration-idempotency";
 import { getClientIp } from "@/lib/client-ip";
@@ -13,6 +9,8 @@ import {
   syncPaymentIntentDetails,
 } from "@/lib/stripe-payment-intent";
 import { validateRegistrationPayload } from "@/lib/submit-registration";
+import { SPRING_SEASON, WINTER_SEASON } from "@/lib/registration-status";
+import { getWinterStreetballPrice } from "@/lib/stripe-winter-product";
 
 type CreatePaymentIntentBody = RegistrationPayload;
 
@@ -35,9 +33,23 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
-  const { parent, players, volunteer, waivers, parentSignature = "" } = body;
+  const { parent, players, volunteer, waivers, parentSignature = "", season } = body;
   if (!parent || !Array.isArray(players) || players.length === 0 || !volunteer || !waivers) {
     return NextResponse.json({ error: "Incomplete registration." }, { status: 400 });
+  }
+
+  if (season === SPRING_SEASON) {
+    return NextResponse.json(
+      { error: "Spring 2027 registration does not require payment." },
+      { status: 400 },
+    );
+  }
+
+  if (season !== WINTER_SEASON) {
+    return NextResponse.json(
+      { error: "Choose Winter 2026 before paying." },
+      { status: 400 },
+    );
   }
 
   const payload: RegistrationPayload = {
@@ -46,6 +58,7 @@ export async function POST(request: Request) {
     volunteer,
     waivers,
     parentSignature,
+    season: WINTER_SEASON,
   };
   const validationErrors = validateRegistrationPayload(payload);
   if (validationErrors) {
@@ -63,17 +76,20 @@ export async function POST(request: Request) {
     );
   }
 
-  const amount = registrationTotalCents(playerCount);
   const email = parent.email.trim();
   const fingerprint = registrationFingerprint(payload);
   const clientIp = getClientIp(request);
 
   try {
+    const price = await getWinterStreetballPrice(stripe);
+    const amount = price.unitAmount * playerCount;
     const paymentIntent = await createOrReusePaymentIntent(stripe, {
       amount,
       email,
       playerCount,
       fingerprint,
+      season: WINTER_SEASON,
+      price,
     });
 
     await syncPaymentIntentDetails(
@@ -82,6 +98,7 @@ export async function POST(request: Request) {
       payload,
       clientIp,
       fingerprint,
+      price,
     );
 
     if (paymentIntent.status === "succeeded") {

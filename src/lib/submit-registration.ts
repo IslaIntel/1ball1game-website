@@ -3,13 +3,15 @@ import {
   MAX_PLAYERS,
   isVolunteering,
   registrationTotalCents,
+  SPRING_WAIVERS,
   validateStep,
   WAIVERS,
+  type WaiverDoc,
   type PlayerInfo,
   type RegistrationPayload,
 } from "@/lib/registration";
 import { buildRegistrationSummaryText } from "@/lib/build-registration-summary";
-import { REGISTRATION_SEASON } from "@/lib/registration-status";
+import { WINTER_SEASON } from "@/lib/registration-status";
 
 const WEBHOOK_URL =
   process.env.REGISTER_WEBHOOK_URL ??
@@ -18,7 +20,9 @@ const WEBHOOK_URL =
 const INFO_EMAIL = "info@1ball1game.org";
 
 export type SubmitRegistrationOptions = {
-  paymentStatus: "paid" | "pending" | "scholarship";
+  paymentStatus: "paid" | "pending" | "scholarship" | "not_required";
+  /** Overrides the season stored on the payload. Used for checkouts started before season choice existed. */
+  season?: string;
   stripePaymentIntentId?: string;
   stripeInvoiceId?: string;
   couponCode?: string;
@@ -29,6 +33,7 @@ export type SubmitRegistrationOptions = {
 
 type ValidateOptions = {
   requireSignature?: boolean;
+  waiverDocs?: WaiverDoc[];
 };
 
 function flattenPlayers(players: PlayerInfo[]) {
@@ -56,9 +61,9 @@ export function validateRegistrationPayload(
   payload: RegistrationPayload,
   options: ValidateOptions = {},
 ) {
-  const lastStep = options.requireSignature ? 5 : 4;
+  const lastStep = options.requireSignature ? 4 : 3;
   for (let step = 0; step <= lastStep; step++) {
-    const errors = validateStep(step, payload);
+    const errors = validateStep(step, payload, options.waiverDocs);
     if (Object.keys(errors).length) {
       return errors;
     }
@@ -102,8 +107,12 @@ export async function submitRegistration(
     throw new Error("Registration webhook is not configured.");
   }
 
+  const season = options.season ?? payload.season ?? WINTER_SEASON;
+  const complimentary = options.paymentStatus === "not_required";
+
   const validationErrors = validateRegistrationPayload(payload, {
     requireSignature: true,
+    waiverDocs: complimentary ? SPRING_WAIVERS : WAIVERS,
   });
   if (validationErrors) {
     throw new Error("Registration validation failed.");
@@ -115,12 +124,13 @@ export async function submitRegistration(
     throw new Error("Invalid player count.");
   }
 
-  const totalCents = registrationTotalCents(playerCount);
+  const totalCents = complimentary ? 0 : registrationTotalCents(playerCount);
   const submittedAt = options.submittedAt ?? new Date().toISOString();
   const clientIp = options.clientIp ?? "";
 
-  const amountPaidCents = options.amountPaidCents ?? totalCents;
+  const amountPaidCents = complimentary ? 0 : (options.amountPaidCents ?? totalCents);
   const registrationEmailBody = buildRegistrationSummaryText(payload, {
+    season,
     paymentStatus: options.paymentStatus,
     stripePaymentIntentId: options.stripePaymentIntentId,
     stripeInvoiceId: options.stripeInvoiceId,
@@ -137,7 +147,7 @@ export async function submitRegistration(
   const sheetRow = {
     submitted_at: submittedAt,
     source: "1ball1game-website-register",
-    season: REGISTRATION_SEASON,
+    season,
     parent_first_name: parent.firstName.trim(),
     parent_last_name: parent.lastName.trim(),
     parent_relationship: parent.relationship,
@@ -177,7 +187,7 @@ export async function submitRegistration(
     email_bcc: INFO_EMAIL,
     notification_recipients: `${parent.email.trim()},${INFO_EMAIL}`,
     registration_email_body: registrationEmailBody,
-    registration_email_subject: `New 1B1G registration — ${parent.firstName.trim()} ${parent.lastName.trim()}`,
+    registration_email_subject: `New 1B1G ${season} registration — ${parent.firstName.trim()} ${parent.lastName.trim()}`,
     ...flattenPlayers(players),
   };
 

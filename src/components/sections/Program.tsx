@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { TrackedSection } from "@/components/analytics/TrackedSection";
 import { Reveal, RevealGroup } from "@/components/ui/Reveal";
 import { RegistrationCTA } from "@/components/ui/RegistrationCTA";
-import { REGISTRATION_OPEN, REGISTRATION_SEASON } from "@/lib/registration-status";
+import { REGISTRATION_OPEN } from "@/lib/registration-status";
 
 const PILLARS = [
   {
@@ -108,8 +108,9 @@ export function Program() {
             />
             {REGISTRATION_OPEN ? (
               <p className="max-w-md text-sm leading-relaxed text-ink/60">
-                {REGISTRATION_SEASON} registration is open for Kindergarten through
-                2nd grade. Spots are first-come, first-served at each school.
+                Winter 2026 Indoor Streetball is open for 2nd through 4th grade.
+                Spring 2027 PTA Rec Soccer collects interest for Kindergarten
+                through 6th grade, with no payment.
               </p>
             ) : null}
           </div>

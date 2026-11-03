@@ -1,6 +1,7 @@
 import type Stripe from "stripe";
-import { registrationTotalCents } from "@/lib/registration";
-import { REGISTRATION_SEASON } from "@/lib/registration-status";
+import { FEE_CENTS, registrationTotalCents } from "@/lib/registration";
+import { WINTER_SEASON } from "@/lib/registration-status";
+import { getWinterStreetballPrice } from "@/lib/stripe-winter-product";
 
 export type ScholarshipLookup = {
   code: string;
@@ -108,13 +109,14 @@ export async function lookupScholarshipCode(
   stripe: Stripe,
   rawCode: string,
   playerCount: number,
+  unitAmountCents = FEE_CENTS,
 ): Promise<{ ok: true; lookup: ScholarshipLookup } | { ok: false; error: string }> {
   const code = normalizeCode(rawCode);
   if (!code) {
     return { ok: false, error: "Enter a scholarship code." };
   }
 
-  const subtotalCents = registrationTotalCents(playerCount);
+  const subtotalCents = registrationTotalCents(playerCount, unitAmountCents);
 
   const promo = await findPromotionCode(stripe, code);
   if (promo) {
@@ -156,6 +158,9 @@ async function redeemViaInvoice(
     name: string;
     fingerprint: string;
     playerCount: number;
+    season: string;
+    priceId: string;
+    productName: string;
   },
 ) {
   const customer = await stripe.customers.create({
@@ -163,7 +168,7 @@ async function redeemViaInvoice(
     name: context.name,
     metadata: {
       source: "1ball1game-website-register",
-      season: REGISTRATION_SEASON,
+      season: context.season,
       registration_fingerprint: context.fingerprint,
       scholarship: "true",
     },
@@ -171,9 +176,9 @@ async function redeemViaInvoice(
 
   await stripe.invoiceItems.create({
     customer: customer.id,
-    amount: registrationTotalCents(context.playerCount),
-    currency: "usd",
-    description: `${REGISTRATION_SEASON} soccer registration (${context.playerCount} player${
+    pricing: { price: context.priceId },
+    quantity: context.playerCount,
+    description: `${context.productName} (${context.playerCount} player${
       context.playerCount === 1 ? "" : "s"
     })`,
   });
@@ -188,7 +193,7 @@ async function redeemViaInvoice(
       : [{ coupon: lookup.couponId }],
     metadata: {
       source: "1ball1game-website-register",
-      season: REGISTRATION_SEASON,
+      season: context.season,
       scholarship: "true",
       registration_fingerprint: context.fingerprint,
       coupon_code: lookup.code,
@@ -231,11 +236,18 @@ export async function redeemScholarshipCode(
     email: string;
     name: string;
     fingerprint: string;
+    season?: string;
   },
 ): Promise<
   { ok: true; result: ScholarshipRedeemResult } | { ok: false; error: string }
 > {
-  const found = await lookupScholarshipCode(stripe, rawCode, playerCount);
+  const price = await getWinterStreetballPrice(stripe);
+  const found = await lookupScholarshipCode(
+    stripe,
+    rawCode,
+    playerCount,
+    price.unitAmount,
+  );
   if (!found.ok) return found;
 
   const { lookup } = found;
@@ -243,6 +255,9 @@ export async function redeemScholarshipCode(
     const redeemed = await redeemViaInvoice(stripe, lookup, {
       ...context,
       playerCount,
+      season: context.season || WINTER_SEASON,
+      priceId: price.priceId,
+      productName: price.productName,
     });
     return {
       ok: true,

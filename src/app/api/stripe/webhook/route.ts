@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { registrationTotalCents } from "@/lib/registration";
+import { WINTER_STREETBALL_PRODUCT_ID } from "@/lib/stripe-winter-product";
 import { decodeRegistrationMetadata } from "@/lib/registration-metadata";
 import { submitRegistration } from "@/lib/submit-registration";
 import { getStripe } from "@/lib/stripe";
@@ -19,7 +20,20 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
   }
 
   const playerCount = payload.players.length;
-  const expectedAmount = registrationTotalCents(playerCount);
+  const unitFromProduct = Number(paymentIntent.metadata.fee_per_player_cents);
+  const expectedAmount =
+    Number.isFinite(unitFromProduct) && unitFromProduct > 0
+      ? unitFromProduct * playerCount
+      : registrationTotalCents(playerCount);
+  const productId = paymentIntent.metadata.stripe_product_id;
+  if (productId && productId !== WINTER_STREETBALL_PRODUCT_ID) {
+    console.error(
+      "Stripe webhook: unexpected product",
+      paymentIntent.id,
+      productId,
+    );
+    return;
+  }
   if (paymentIntent.amount !== expectedAmount) {
     console.error(
       "Stripe webhook: amount mismatch",
@@ -43,6 +57,7 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
 
   await submitRegistration(payload, {
     paymentStatus: "paid",
+    season: payload.season || paymentIntent.metadata.season,
     stripePaymentIntentId: paymentIntent.id,
     clientIp: paymentIntent.metadata.client_ip ?? "",
   });
