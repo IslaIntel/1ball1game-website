@@ -48,6 +48,15 @@ Waitlist offers: Derek opens the staff page (link below), sees counts and each g
 
 Spring interest registration and existing Fall rows are untouched.
 
+## Emails
+
+- Registration emails stay on Waves. The site posts its row to the Waves webhook; the "Email Parent Confirmation" step already sends `parent_email_subject` / `parent_email_html` for Winter, so enrolled, mixed and "Waitlisted — no payment collected" emails go out from registration@ through Waves with no flow change. The team email includes each child's session and status.
+- Only the waitlist **offer** email and the **enrolled after accepting an offer** email come from the capacity script (`MailApp`). It runs as registration@1ball1game.org, a Google Workspace user, so parents see the same sender.
+
+## Waves column mapping
+
+Waves' "Insert Row" step maps fields to fixed columns A–DG. The new fields (`registration_id`, `enrollment_json`, `player_N_session_id`, ...) are sent but not written to the import tab until mapped. The per-child data is in `Winter_2026_Enrollment` regardless. To join the two tabs, add a `registration_id` header in column DH of `1B1G_Fall_2026_Registration_Import` and map `{{trigger['body']['registration_id']}}` to DH in the Waves Register flow.
+
 ## Turning it on
 
 1. **Create the script** while signed in as registration@1ball1game.org: script.new, paste `Code.js`, and replace the manifest with `appsscript.json` (Project Settings → show manifest).
@@ -55,8 +64,9 @@ Spring interest registration and existing Fall rows are untouched.
 3. **Deploy** → New deployment → Web app → Execute as *me* (registration@), Who has access *Anyone*. Approve the Sheets and send-mail permissions. Copy the `/exec` URL.
 4. **Vercel environment variables (Production and Preview):** `CAPACITY_SCRIPT_URL` (the `/exec` URL), `CAPACITY_SCRIPT_SECRET` (same as `SHARED_SECRET`), `CRON_SECRET` (any long random string).
 5. **Test on the Vercel preview** with Stripe test keys and `NEXT_PUBLIC_WINTER_CAP_ENABLED=true` (checklist below).
-6. Clear the test rows from `Winter_2026_Enrollment`, merge, set `NEXT_PUBLIC_WINTER_CAP_ENABLED=true` on Production, and redeploy.
-7. Give Derek the staff page: `<exec URL>?key=<STAFF_KEY>`.
+6. Add the `registration_id` column (DH) to the import tab and map it in the Waves Register flow (see above).
+7. Clear the test rows from `Winter_2026_Enrollment`, merge, set `NEXT_PUBLIC_WINTER_CAP_ENABLED=true` on Production, and redeploy.
+8. Give Derek the staff page: `<exec URL>?key=<STAFF_KEY>`.
 
 ## Tests
 
