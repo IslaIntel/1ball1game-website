@@ -12,9 +12,12 @@
  *   SHARED_SECRET  long random string, also set as CAPACITY_SCRIPT_SECRET on Vercel
  *   STAFF_KEY      long random string for the staff page link
  *   SITE_URL       https://1ball1game.org
+ *   EMAIL_WEBHOOK_URL  Waves "1B1G Winter offer emails" webhook URL
+ *   EMAIL_WEBHOOK_KEY  key that Waves flow checks before sending
  *
- * Deploy as a web app: Execute as = the registration@1ball1game.org account,
- * Who has access = Anyone. Waitlist offer emails are sent from that account.
+ * Deploy as a web app: Execute as = me (any account that can edit the sheet),
+ * Who has access = Anyone. Emails go out through Waves from
+ * registration@1ball1game.org, like every other registration email.
  */
 
 var SPREADSHEET_ID = '1IYFeKojySg6eN9eOl5xikUeqod7CnO3eyyQX97r9TmM';
@@ -520,8 +523,22 @@ function escapeHtml_(value) {
 }
 
 // ---------------------------------------------------------------------------
-// Emails (sent from the account the web app runs as)
+// Emails: handed to Waves, which sends them from registration@1ball1game.org
 // ---------------------------------------------------------------------------
+
+function sendEmail_(to, subject, html) {
+  var url = prop_('EMAIL_WEBHOOK_URL');
+  if (!url) throw new Error('EMAIL_WEBHOOK_URL is not set.');
+  var response = UrlFetchApp.fetch(url, {
+    method: 'post',
+    contentType: 'application/json',
+    payload: JSON.stringify({ key: prop_('EMAIL_WEBHOOK_KEY'), to: to, subject: subject, html: html }),
+    muteHttpExceptions: true,
+  });
+  if (response.getResponseCode() >= 300) {
+    throw new Error('Email webhook failed with ' + response.getResponseCode());
+  }
+}
 
 function sendOfferEmail_(row, session, token) {
   var link = (prop_('SITE_URL') || 'https://1ball1game.org') + '/register/offer?token=' + token;
@@ -529,11 +546,9 @@ function sendOfferEmail_(row, session, token) {
     new Date(row.reservation_expires_at), 'America/New_York', "EEEE, MMMM d 'at' h:mm a",
   );
   var when = session.day + 's, ' + session.time + ' (' + session.group + ')';
-  MailApp.sendEmail({
-    to: row.parent_email,
-    subject: 'A Winter Streetball place is open for ' + row.player_name,
-    name: '1Ball1Game Registration',
-    htmlBody:
+  sendEmail_(
+    row.parent_email,
+    'A Winter Streetball place is open for ' + row.player_name,
       '<p>Hi ' + escapeHtml_(row.parent_name || 'there') + ',</p>' +
       '<p>Good news: a place opened up in Winter Streetball at Lemon Road for <strong>' +
       escapeHtml_(row.player_name) + '</strong> — ' + escapeHtml_(when) + '.</p>' +
@@ -543,24 +558,22 @@ function sendOfferEmail_(row, session, token) {
       '<p>Nothing is charged unless you accept and pay. If you no longer need the place, ' +
       'you can ignore this email and it will go to the next family.</p>' +
       '<p>Best,<br>The 1B1G Team</p>',
-  });
+  );
 }
 
 function sendEnrolledEmail_(row) {
   var session = sessionById_(row.session_id);
   var when = session ? session.day + 's, ' + session.time + ' (' + session.group + ')' : row.session_id;
-  MailApp.sendEmail({
-    to: row.parent_email,
-    subject: 'Welcome to Winter Streetball at Lemon Road!',
-    name: '1Ball1Game Registration',
-    htmlBody:
+  sendEmail_(
+    row.parent_email,
+    'Welcome to Winter Streetball at Lemon Road!',
       '<p>Hi ' + escapeHtml_(row.parent_name || 'there') + ',</p>' +
       '<p>Your payment is complete and <strong>' + escapeHtml_(row.player_name) +
       '</strong> is enrolled in Winter Streetball at Lemon Road: ' + escapeHtml_(when) + '.</p>' +
       '<p>Sessions run the weeks of Nov 30th – Jan 18th (make up week of Jan 25th) at the ' +
       'Lemon Road Elementary Gym.</p>' +
       '<p>See you on the court,<br>The 1B1G Team</p>',
-  });
+  );
 }
 
 // ---------------------------------------------------------------------------

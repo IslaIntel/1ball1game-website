@@ -56,11 +56,24 @@ function load() {
     PropertiesService: {
       getScriptProperties: () => ({
         getProperty: (name) =>
-          ({ SHARED_SECRET: SECRET, STAFF_KEY: "staff", SITE_URL: "https://example.test" })[name],
+          ({
+            SHARED_SECRET: SECRET,
+            STAFF_KEY: "staff",
+            SITE_URL: "https://example.test",
+            EMAIL_WEBHOOK_URL: "https://waves.example.test/hook",
+            EMAIL_WEBHOOK_KEY: "email-key",
+          })[name],
       }),
     },
     Utilities: { getUuid: () => randomUUID(), formatDate: (d) => d.toISOString() },
-    MailApp: { sendEmail: (message) => mail.push(message) },
+    UrlFetchApp: {
+      fetch: (url, options) => {
+        const body = JSON.parse(options.payload);
+        assert.equal(body.key, "email-key");
+        mail.push({ to: body.to, subject: body.subject, htmlBody: body.html });
+        return { getResponseCode: () => 200 };
+      },
+    },
     ContentService: {
       createTextOutput: (text) => ({ setMimeType: () => ({ text }) }),
       MimeType: { JSON: "json" },
