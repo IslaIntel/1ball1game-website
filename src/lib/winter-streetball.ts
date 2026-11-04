@@ -22,46 +22,74 @@ export const WINTER_STREETBALL = {
   ],
 } as const;
 
-type Session = { day: string; time: string; group: string; grade: string; gender: string };
+export type WinterSession = {
+  id: string;
+  day: string;
+  time: string;
+  group: string;
+  grade: string;
+  gender: string;
+};
 
-export const WINTER_SCHEDULE: { day: string; sessions: Session[] }[] = [
+export const WINTER_SCHEDULE: { day: string; sessions: WinterSession[] }[] = [
   {
     day: "Monday",
     sessions: [
-      { day: "Monday", time: "5–6 pm", group: "2nd grade girls", grade: "2nd Grade", gender: "Female" },
-      { day: "Monday", time: "6–7 pm", group: "2nd grade boys", grade: "2nd Grade", gender: "Male" },
+      { id: "winter-2026-mon-1700-2g", day: "Monday", time: "5–6 pm", group: "2nd grade girls", grade: "2nd Grade", gender: "Female" },
+      { id: "winter-2026-mon-1800-2b", day: "Monday", time: "6–7 pm", group: "2nd grade boys", grade: "2nd Grade", gender: "Male" },
     ],
   },
   {
     day: "Wednesday",
     sessions: [
-      { day: "Wednesday", time: "5–6 pm", group: "4th grade girls", grade: "4th Grade", gender: "Female" },
-      { day: "Wednesday", time: "6–7 pm", group: "4th grade boys", grade: "4th Grade", gender: "Male" },
+      { id: "winter-2026-wed-1700-4g", day: "Wednesday", time: "5–6 pm", group: "4th grade girls", grade: "4th Grade", gender: "Female" },
+      { id: "winter-2026-wed-1800-4b", day: "Wednesday", time: "6–7 pm", group: "4th grade boys", grade: "4th Grade", gender: "Male" },
     ],
   },
   {
     day: "Thursday",
     sessions: [
-      { day: "Thursday", time: "5–6 pm", group: "3rd grade girls", grade: "3rd Grade", gender: "Female" },
-      { day: "Thursday", time: "6–7 pm", group: "3rd grade boys", grade: "3rd Grade", gender: "Male" },
+      { id: "winter-2026-thu-1700-3g", day: "Thursday", time: "5–6 pm", group: "3rd grade girls", grade: "3rd Grade", gender: "Female" },
+      { id: "winter-2026-thu-1800-3b", day: "Thursday", time: "6–7 pm", group: "3rd grade boys", grade: "3rd Grade", gender: "Male" },
     ],
   },
 ];
 
-/** The weekly session a player attends, or null when it can't be told from grade and gender. */
-export function winterSessionFor(player: Pick<PlayerInfo, "grade" | "gender">) {
-  for (const day of WINTER_SCHEDULE) {
-    const match = day.sessions.find(
-      (s) => s.grade === player.grade && s.gender === player.gender,
-    );
-    if (match) return match;
-  }
-  return null;
+/** All six sessions, in schedule order. Session IDs match the capacity sheet. */
+export const WINTER_SESSIONS: WinterSession[] = WINTER_SCHEDULE.flatMap((day) => day.sessions);
+
+export function winterSessionById(id: string | undefined) {
+  return WINTER_SESSIONS.find((s) => s.id === id) ?? null;
 }
 
-export function winterSessionLabel(player: Pick<PlayerInfo, "grade" | "gender">) {
+/** Sessions a player in this grade can join (both groups for that grade). */
+export function winterSessionsForGrade(grade: string) {
+  return WINTER_SESSIONS.filter((s) => s.grade === grade);
+}
+
+/**
+ * The weekly session a player attends: the one the parent picked, or, when no
+ * session was picked, the one that matches grade and gender.
+ */
+export function winterSessionFor(
+  player: Pick<PlayerInfo, "grade" | "gender"> & { sessionId?: string },
+) {
+  const picked = winterSessionById(player.sessionId);
+  if (picked) return picked;
+  return (
+    WINTER_SESSIONS.find((s) => s.grade === player.grade && s.gender === player.gender) ?? null
+  );
+}
+
+export function winterSessionText(session: WinterSession) {
+  return `${session.day}s, ${session.time} (${session.group})`;
+}
+
+export function winterSessionLabel(
+  player: Pick<PlayerInfo, "grade" | "gender"> & { sessionId?: string },
+) {
   const session = winterSessionFor(player);
   return session
-    ? `${session.day}s, ${session.time} (${session.group})`
+    ? winterSessionText(session)
     : `${player.grade}: we'll email you to confirm the group`;
 }

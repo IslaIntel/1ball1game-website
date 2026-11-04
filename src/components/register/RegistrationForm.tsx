@@ -39,6 +39,24 @@ import {
 } from "@/components/register/RegistrationPayment";
 import { EVENTS, track } from "@/lib/analytics";
 import { SPRING_SEASON, WINTER_SEASON } from "@/lib/registration-status";
+import {
+  WINTER_CAP_ENABLED,
+  hasPlace,
+  type EnrollmentChild,
+  type SessionAvailability,
+} from "@/lib/winter-capacity-config";
+import {
+  winterSessionById,
+  winterSessionText,
+  winterSessionsForGrade,
+} from "@/lib/winter-streetball";
+
+type Reservation = {
+  registrationId: string;
+  children: EnrollmentChild[];
+  billableCount: number;
+  unitPriceCents: number;
+};
 
 const fieldClass =
   "w-full rounded-xl border border-ink/15 bg-cloud px-4 py-3 text-ink outline-none transition-colors placeholder:text-ink/35 focus:border-magenta";
@@ -101,6 +119,12 @@ export function RegistrationForm({
   const [paymentReady, setPaymentReady] = useState(false);
   const [amountDueCents, setAmountDueCents] = useState(FEE_CENTS);
   const paymentRef = useRef<RegistrationPaymentHandle>(null);
+  // Winter session cap: places left per session, and this family's places.
+  const capOn = WINTER_CAP_ENABLED && requiresPayment;
+  const [availability, setAvailability] = useState<Record<string, SessionAvailability>>({});
+  const [reservation, setReservation] = useState<Reservation | null>(null);
+  const [reserveState, setReserveState] = useState<"idle" | "loading" | "error">("idle");
+  const [outcome, setOutcome] = useState<EnrollmentChild[] | null>(null);
 
   useEffect(() => {
     const warm = () => {
@@ -117,7 +141,68 @@ export function RegistrationForm({
     }
   }, [step]);
 
-  const totalCents = players.length * FEE_CENTS;
+  useEffect(() => {
+    if (!capOn || step !== 1) return;
+    let cancelled = false;
+    void fetch("/api/sessions", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((data: { sessions?: SessionAvailability[] }) => {
+        if (cancelled || !data.sessions) return;
+        setAvailability(Object.fromEntries(data.sessions.map((s) => [s.id, s])));
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [capOn, step]);
+
+  // Same family + same children + same sessions = same reservation request.
+  const reservationKey = JSON.stringify([
+    parent.email.trim().toLowerCase(),
+    players.map((p) => [p.firstName.trim(), p.lastName.trim(), p.dateOfBirth, p.sessionId]),
+  ]);
+
+  useEffect(() => {
+    if (!capOn || step !== 4) return;
+    let cancelled = false;
+    setReserveState("loading");
+    setReservation(null);
+    void (async () => {
+      try {
+        const response = await fetch("/api/register/reserve", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ parent, players, volunteer, waivers, parentSignature, season }),
+        });
+        const data = (await response.json().catch(() => null)) as
+          | (Reservation & { error?: string })
+          | null;
+        if (cancelled) return;
+        if (!response.ok || !data?.children) {
+          setReserveState("error");
+          setErrorMessage(data?.error ?? "We could not check places. Please try again.");
+          return;
+        }
+        setReservation(data);
+        setReserveState("idle");
+        setErrorMessage("");
+      } catch {
+        if (cancelled) return;
+        setReserveState("error");
+        setErrorMessage("We could not check places. Please try again.");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // Re-check only when the children or sessions change, not on every keystroke.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [capOn, step, reservationKey]);
+
+  const billableCount = reservation?.billableCount ?? 0;
+  const waitlistOnly = capOn && reservation !== null && billableCount === 0;
+  const needsPayment = requiresPayment && !waitlistOnly;
+  const totalCents = (capOn ? billableCount : players.length) * FEE_CENTS;
 
   useEffect(() => {
     setAmountDueCents(totalCents);
@@ -169,7 +254,12 @@ export function RegistrationForm({
       return;
     }
 
-    if (requiresPayment && !paymentRef.current?.isReady()) {
+    if (capOn && !reservation) {
+      setErrorMessage("Still checking places. Please wait a moment.");
+      return;
+    }
+
+    if (needsPayment && !paymentRef.current?.isReady()) {
       setErrorMessage("Payment form is still loading. Please wait a moment.");
       return;
     }
@@ -187,7 +277,7 @@ export function RegistrationForm({
     });
 
     try {
-      if (requiresPayment) {
+      if (needsPayment) {
         const result = await paymentRef.current!.confirmPayment(payload);
         if (!result.ok) {
           throw new Error(result.error);
@@ -203,6 +293,7 @@ export function RegistrationForm({
           throw new Error(data?.error || "Unable to save this registration.");
         }
       }
+      if (capOn && reservation) setOutcome(reservation.children);
       setStatus("success");
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (error) {
@@ -222,6 +313,7 @@ export function RegistrationForm({
         email={parent.email}
         season={season}
         paid={requiresPayment}
+        outcome={outcome ?? undefined}
       />
     );
   }
@@ -334,6 +426,8 @@ export function RegistrationForm({
                 errors={errors}
                 grades={grades}
                 season={season}
+                capOn={capOn}
+                availability={availability}
                 onChange={updatePlayer}
                 onAdd={() =>
                   setPlayers((p) =>
@@ -375,12 +469,20 @@ export function RegistrationForm({
                   signatureError={errors.parentSignature}
                   onSignatureChange={setParentSignature}
                 />
-                {requiresPayment ? (
+                {capOn ? (
+                  <ReservationSummary
+                    players={players}
+                    reservation={reservation}
+                    state={reserveState}
+                  />
+                ) : null}
+                {needsPayment && (!capOn || reservation) ? (
                   <RegistrationPayment
+                    key={capOn ? reservationKey : undefined}
                     ref={paymentRef}
                     payload={payload}
                     totalCents={totalCents}
-                    playerCount={players.length}
+                    playerCount={capOn ? billableCount : players.length}
                     onReadyChange={setPaymentReady}
                     onAmountDueChange={setAmountDueCents}
                     onError={setErrorMessage}
@@ -425,10 +527,18 @@ export function RegistrationForm({
               <button
                 type="button"
                 onClick={handleSubmit}
-                disabled={status === "submitting" || (requiresPayment && !paymentReady)}
+                disabled={
+                  status === "submitting" ||
+                  (capOn && !reservation) ||
+                  (needsPayment && !paymentReady)
+                }
                 className="rounded-full bg-magenta px-7 py-3 text-sm font-semibold text-cloud transition-colors hover:bg-magenta-deep disabled:opacity-60"
               >
-                {status === "submitting"
+                {waitlistOnly
+                  ? status === "submitting"
+                    ? "Joining the waitlist…"
+                    : "Join the free waitlist"
+                  : status === "submitting"
                   ? requiresPayment
                     ? amountDueCents === 0
                       ? "Completing registration…"
@@ -642,6 +752,8 @@ function PlayersStep({
   maxPlayers,
   grades,
   season,
+  capOn,
+  availability,
   errors,
   onChange,
   onAdd,
@@ -651,6 +763,8 @@ function PlayersStep({
   maxPlayers: number;
   grades: readonly string[];
   season: string;
+  capOn: boolean;
+  availability: Record<string, SessionAvailability>;
   errors: FieldErrors;
   onChange: <K extends keyof PlayerInfo>(
     index: number,
@@ -763,6 +877,15 @@ function PlayersStep({
                   ))}
                 </select>
               </Field>
+              {capOn ? (
+                <SessionField
+                  index={i}
+                  player={player}
+                  availability={availability}
+                  error={errors[`players.${i}.sessionId`]}
+                  onChange={(value) => onChange(i, "sessionId", value)}
+                />
+              ) : null}
               <Field
                 label="School attending"
                 id={`player-${i}-school`}
@@ -1145,5 +1268,118 @@ function ReviewStep({
         </Field>
       </div>
     </section>
+  );
+}
+
+function SessionField({
+  index,
+  player,
+  availability,
+  error,
+  onChange,
+}: {
+  index: number;
+  player: PlayerInfo;
+  availability: Record<string, SessionAvailability>;
+  error?: string;
+  onChange: (value: string) => void;
+}) {
+  const options = winterSessionsForGrade(player.grade);
+  const id = `player-${index}-session`;
+  const selected = availability[player.sessionId ?? ""];
+  return (
+    <div className="sm:col-span-2">
+      <Field
+        label="Weekly session"
+        id={id}
+        required
+        error={error}
+        hint={
+          player.grade
+            ? "Each group has 12 places. When a group is full, your child joins the free waitlist and is not charged."
+            : "Choose a grade first."
+        }
+      >
+        <select
+          id={id}
+          className={fieldClass}
+          value={options.some((o) => o.id === player.sessionId) ? player.sessionId : ""}
+          onChange={(e) => onChange(e.target.value)}
+          disabled={!player.grade}
+        >
+          <option value="">Select a session</option>
+          {options.map((session) => {
+            const seats = availability[session.id];
+            const suffix = seats ? ` — ${seats.label}` : "";
+            return (
+              <option key={session.id} value={session.id}>
+                {`${winterSessionText(session)}${suffix}`}
+              </option>
+            );
+          })}
+        </select>
+      </Field>
+      {selected && selected.remaining === 0 ? (
+        <p className="mt-1.5 text-sm font-medium text-magenta-deep">
+          Full — Join the free waitlist. You won’t be charged for this player.
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function ReservationSummary({
+  players,
+  reservation,
+  state,
+}: {
+  players: PlayerInfo[];
+  reservation: Reservation | null;
+  state: "idle" | "loading" | "error";
+}) {
+  if (state === "loading" || (!reservation && state !== "error")) {
+    return (
+      <div className="rounded-2xl border border-ink/10 bg-paper/60 p-5 text-sm text-ink/60">
+        Checking places in each session…
+      </div>
+    );
+  }
+  if (!reservation) return null;
+
+  return (
+    <div className="rounded-2xl border border-ink/10 bg-paper/60 p-5">
+      <h3 className="font-semibold text-ink">Places</h3>
+      <ul className="mt-3 divide-y divide-ink/10">
+        {players.map((player, i) => {
+          const child = reservation.children[i];
+          const session = winterSessionById(child?.sessionId ?? player.sessionId);
+          const placed = child ? hasPlace(child) : false;
+          return (
+            <li key={i} className="flex flex-col gap-1 py-2.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+              <span>
+                <span className="font-semibold text-ink">
+                  {player.firstName} {player.lastName}
+                </span>
+                {session ? (
+                  <span className="block text-sm text-ink/60">{winterSessionText(session)}</span>
+                ) : null}
+              </span>
+              <span
+                className={`text-sm font-semibold ${placed ? "text-ink" : "text-magenta-deep"}`}
+              >
+                {placed
+                  ? `Place held · ${formatUsd(child?.amountDueCents ?? FEE_CENTS)}`
+                  : "Waitlisted — no payment collected"}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+      <p className="mt-3 text-xs text-ink/55">
+        {reservation.billableCount > 0
+          ? "Places are held for 30 minutes while you pay. You are only charged for players with a place."
+          : "Every session you picked is full. Joining the waitlist is free and no card is needed. If a place opens, we’ll email you a link to accept it."}
+      </p>
+    </div>
   );
 }

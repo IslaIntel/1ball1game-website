@@ -13,6 +13,7 @@ import {
 import { buildRegistrationSummaryText } from "@/lib/build-registration-summary";
 import { WINTER_SEASON } from "@/lib/registration-status";
 import { buildWinterWelcomeEmail } from "@/lib/build-winter-welcome-email";
+import { hasPlace, type EnrollmentChild } from "@/lib/winter-capacity-config";
 
 const WEBHOOK_URL =
   process.env.REGISTER_WEBHOOK_URL ??
@@ -21,7 +22,7 @@ const WEBHOOK_URL =
 const INFO_EMAIL = "info@1ball1game.org";
 
 export type SubmitRegistrationOptions = {
-  paymentStatus: "paid" | "pending" | "scholarship" | "not_required";
+  paymentStatus: "paid" | "pending" | "scholarship" | "not_required" | "waitlisted";
   /** Overrides the season stored on the payload. Used for checkouts started before season choice existed. */
   season?: string;
   stripePaymentIntentId?: string;
@@ -30,6 +31,9 @@ export type SubmitRegistrationOptions = {
   amountPaidCents?: number;
   submittedAt?: string;
   clientIp?: string;
+  /** Set when the Winter cap is on: the family ID and each child's place or waitlist spot. */
+  registrationId?: string;
+  enrollment?: EnrollmentChild[];
 };
 
 type ValidateOptions = {
@@ -54,6 +58,20 @@ function flattenPlayers(players: PlayerInfo[]) {
     flat[`player_${n}_emergency_phone`] = player.emergencyPhone.trim();
     flat[`player_${n}_has_medical_conditions`] = player.hasMedicalConditions;
     flat[`player_${n}_medical_details`] = player.medicalDetails.trim();
+  });
+  return flat;
+}
+
+/** player_N_player_id / session_id / enrollment_status, matching the player_N_* columns. */
+function flattenEnrollment(enrollment: EnrollmentChild[] | undefined) {
+  const flat: Record<string, string> = {};
+  enrollment?.forEach((child, i) => {
+    const n = i + 1;
+    flat[`player_${n}_player_id`] = child.playerId;
+    flat[`player_${n}_session_id`] = child.sessionId;
+    flat[`player_${n}_enrollment_status`] = child.enrollmentStatus;
+    flat[`player_${n}_payment_status`] = child.paymentStatus;
+    flat[`player_${n}_waitlisted_at`] = child.waitlistedAt;
   });
   return flat;
 }
@@ -108,6 +126,8 @@ export async function submitRegistration(
 
   const season = options.season ?? payload.season ?? WINTER_SEASON;
   const complimentary = options.paymentStatus === "not_required";
+  const enrollment = options.enrollment;
+  const enrolledCount = enrollment ? enrollment.filter(hasPlace).length : null;
 
   const validationErrors = validateRegistrationPayload(payload, {
     requireSignature: true,
@@ -123,7 +143,9 @@ export async function submitRegistration(
     throw new Error("Invalid player count.");
   }
 
-  const totalCents = complimentary ? 0 : registrationTotalCents(playerCount);
+  const totalCents = complimentary
+    ? 0
+    : registrationTotalCents(enrolledCount ?? playerCount);
   const submittedAt = options.submittedAt ?? new Date().toISOString();
   const clientIp = options.clientIp ?? "";
 
@@ -137,10 +159,12 @@ export async function submitRegistration(
     amountPaidCents,
     submittedAt,
     clientIp,
+    totalCents,
+    enrollment,
   });
 
   // Winter families get a welcome email; the full summary goes to the team only.
-  const welcomeEmail = complimentary ? null : buildWinterWelcomeEmail(payload);
+  const welcomeEmail = complimentary ? null : buildWinterWelcomeEmail(payload, enrollment);
 
   const waiverSummary = WAIVERS.map(
     (waiver) => `${waivers[waiver.key] ? "Agreed" : "Not agreed"}: ${waiver.title}`,
@@ -190,6 +214,14 @@ export async function submitRegistration(
     notification_recipients: `${parent.email.trim()},${INFO_EMAIL}`,
     registration_email_body: registrationEmailBody,
     registration_email_subject: `New 1B1G ${season} registration — ${parent.firstName.trim()} ${parent.lastName.trim()}`,
+    registration_id: options.registrationId ?? "",
+    program: complimentary ? "" : "winter-streetball",
+    enrolled_count: enrolledCount ?? "",
+    waitlisted_count: enrollment
+      ? enrollment.filter((c) => c.enrollmentStatus === "waitlisted").length
+      : "",
+    enrollment_json: enrollment ? JSON.stringify(enrollment) : "",
+    ...flattenEnrollment(enrollment),
     parent_email_subject: welcomeEmail?.subject ?? "",
     parent_email_text: welcomeEmail?.text ?? "",
     parent_email_html: welcomeEmail?.html ?? "",

@@ -6,6 +6,8 @@ import {
   WAIVERS,
   type RegistrationPayload,
 } from "@/lib/registration";
+import type { EnrollmentChild } from "@/lib/winter-capacity-config";
+import { winterSessionById, winterSessionText } from "@/lib/winter-streetball";
 export function buildRegistrationSummaryText(
   payload: RegistrationPayload,
   options: {
@@ -17,11 +19,15 @@ export function buildRegistrationSummaryText(
     amountPaidCents?: number;
     submittedAt: string;
     clientIp?: string;
+    totalCents?: number;
+    enrollment?: EnrollmentChild[];
   },
 ) {
   const { parent, players, volunteer, waivers, parentSignature } = payload;
   const complimentary = options.paymentStatus === "not_required";
-  const totalCents = complimentary ? 0 : registrationTotalCents(players.length);
+  const totalCents = complimentary
+    ? 0
+    : (options.totalCents ?? registrationTotalCents(players.length));
   const amountPaidCents = options.amountPaidCents ?? totalCents;
   const lines: string[] = [
     `New ${options.season} soccer registration`,
@@ -74,6 +80,7 @@ export function buildRegistrationSummaryText(
       `  Grade: ${player.grade}`,
       `  School: ${player.school}`,
       `  Jersey: ${player.jerseySize}`,
+      ...enrollmentLines(options.enrollment?.[i]),
       `  Buddy request: ${player.buddyRequest.trim() || "—"}`,
       `  Emergency: ${player.emergencyContactName} · ${player.emergencyPhone}`,
       `  Medical conditions: ${player.hasMedicalConditions === "yes" ? "Yes" : "No"}`,
@@ -102,4 +109,18 @@ export function buildRegistrationSummaryText(
   }
 
   return lines.join("\n");
+}
+
+function enrollmentLines(child: EnrollmentChild | undefined) {
+  if (!child) return [];
+  const session = winterSessionById(child.sessionId);
+  const status =
+    child.enrollmentStatus === "waitlisted"
+      ? `Waitlisted — no payment collected (since ${child.waitlistedAt})`
+      : child.enrollmentStatus;
+  return [
+    `  Session: ${session ? winterSessionText(session) : child.sessionId}`,
+    `  Enrollment: ${status}`,
+    `  Player ID: ${child.playerId}`,
+  ];
 }

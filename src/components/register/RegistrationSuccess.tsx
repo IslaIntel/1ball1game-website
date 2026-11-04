@@ -9,6 +9,7 @@ import {
   WINTER_STREETBALL,
   winterSessionLabel,
 } from "@/lib/winter-streetball";
+import { hasPlace, type EnrollmentChild } from "@/lib/winter-capacity-config";
 
 type RegistrationSuccessProps = {
   players: PlayerInfo[];
@@ -16,6 +17,8 @@ type RegistrationSuccessProps = {
   season: string;
   /** False for Spring interest sign-ups, where no payment is taken. */
   paid?: boolean;
+  /** With the Winter session cap on: each child's place or waitlist spot. */
+  outcome?: EnrollmentChild[];
 };
 
 const fadeUp = {
@@ -30,16 +33,34 @@ const fadeUp = {
 function WinterConfirmation({
   players,
   email,
-}: Pick<RegistrationSuccessProps, "players" | "email">) {
+  outcome,
+}: Pick<RegistrationSuccessProps, "players" | "email" | "outcome">) {
+  const waitlisted = (i: number) => Boolean(outcome?.[i] && !hasPlace(outcome[i]));
+  const allWaitlisted = Boolean(outcome?.length) && players.every((_, i) => waitlisted(i));
+  const someWaitlisted = !allWaitlisted && players.some((_, i) => waitlisted(i));
   return (
     <>
       <motion.div custom={1} variants={fadeUp} className="space-y-4 text-ink/70">
-        <p>
-          Your registration is confirmed and we can&apos;t wait to see your{" "}
-          {players.length > 1 ? "players" : "player"} in the gym. A welcome
-          email with these details is on its way to{" "}
-          <strong className="text-ink">{email}</strong>.
-        </p>
+        {allWaitlisted ? (
+          <p>
+            The session{players.length > 1 ? "s you picked are" : " you picked is"} full,
+            so we&apos;ve added your family to the free waitlist.{" "}
+            <strong className="text-ink">No payment was collected</strong> and no card
+            is on file. Being on the waitlist does not guarantee a place. If one
+            opens, we&apos;ll email <strong className="text-ink">{email}</strong> a
+            link to accept it, and you only pay if you accept.
+          </p>
+        ) : (
+          <p>
+            Your registration is confirmed and we can&apos;t wait to see your{" "}
+            {players.length > 1 ? "players" : "player"} in the gym.
+            {someWaitlisted
+              ? " Players marked waitlisted were not charged and are not guaranteed a place; if one opens, we’ll email you a link to accept it."
+              : ""}{" "}
+            A confirmation email with these details is on its way to{" "}
+            <strong className="text-ink">{email}</strong>.
+          </p>
+        )}
       </motion.div>
 
       <motion.div
@@ -47,7 +68,9 @@ function WinterConfirmation({
         variants={fadeUp}
         className="rounded-2xl border border-magenta/20 bg-magenta/5 px-5 py-5 sm:px-6"
       >
-        <h2 className="font-semibold text-magenta-deep">Your weekly session</h2>
+        <h2 className="font-semibold text-magenta-deep">
+          {allWaitlisted ? "Waitlist" : "Your weekly session"}
+        </h2>
         <ul className="mt-3 divide-y divide-magenta/15">
           {players.map((player, i) => (
             <li
@@ -58,6 +81,11 @@ function WinterConfirmation({
                 {player.firstName} {player.lastName}
               </span>
               <span className="text-sm text-ink/70">
+                {waitlisted(i) ? (
+                  <strong className="text-magenta-deep">
+                    Waitlisted — no payment collected ·{" "}
+                  </strong>
+                ) : null}
                 {winterSessionLabel(player)}
               </span>
             </li>
@@ -101,7 +129,7 @@ function WinterConfirmation({
         </div>
 
         <p className="text-ink/70">
-          See you on the court,
+          {allWaitlisted ? "Best," : "See you on the court,"}
           <br />
           <strong className="text-ink">The 1B1G Team</strong>
         </p>
@@ -141,6 +169,7 @@ function InterestConfirmation({ season }: { season: string }) {
 }
 
 export function RegistrationSuccess({
+  outcome,
   players,
   email,
   season,
@@ -177,12 +206,18 @@ export function RegistrationSuccess({
             className="mx-auto mt-2 h-12 w-12 object-contain"
           />
           <span className="eyebrow mt-6 inline-block text-magenta">
-            {paid ? "Registration confirmed" : "Information received"}
+            {!paid
+              ? "Information received"
+              : allChildrenWaitlisted(outcome)
+                ? "On the waitlist"
+                : "Registration confirmed"}
           </span>
           <h1 className="mt-3 font-display text-3xl font-semibold text-ink sm:text-4xl">
-            {paid
-              ? `Welcome to ${WINTER_STREETBALL.name}!`
-              : "Thank you for your interest"}
+            {!paid
+              ? "Thank you for your interest"
+              : allChildrenWaitlisted(outcome)
+                ? "You’re on the Winter Streetball waitlist"
+                : `Welcome to ${WINTER_STREETBALL.name}!`}
           </h1>
           {paid ? (
             <p className="mt-3 font-semibold text-ink">{WINTER_STREETBALL.dates}</p>
@@ -191,7 +226,7 @@ export function RegistrationSuccess({
 
         <div className="space-y-6 px-6 py-8 sm:px-10 sm:py-10">
           {paid ? (
-            <WinterConfirmation players={players} email={email} />
+            <WinterConfirmation players={players} email={email} outcome={outcome} />
           ) : (
             <InterestConfirmation season={season} />
           )}
@@ -224,4 +259,8 @@ export function RegistrationSuccess({
       </div>
     </motion.div>
   );
+}
+
+function allChildrenWaitlisted(outcome: EnrollmentChild[] | undefined) {
+  return Boolean(outcome?.length) && outcome!.every((child) => !hasPlace(child));
 }

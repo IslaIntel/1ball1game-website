@@ -30,6 +30,7 @@ export function stablePaymentIntentParams(options: {
   fingerprint: string;
   season: string;
   price: WinterStreetballPrice;
+  extraMetadata?: Record<string, string>;
 }): Stripe.PaymentIntentCreateParams {
   return {
     amount: options.amount,
@@ -55,6 +56,7 @@ export function stablePaymentIntentParams(options: {
       source: "1ball1game-website-register",
       registration_fingerprint: options.fingerprint,
       registration_submitted: "false",
+      ...options.extraMetadata,
     },
   };
 }
@@ -111,13 +113,23 @@ export async function createOrReusePaymentIntent(
     fingerprint: string;
     season: string;
     price: WinterStreetballPrice;
+    extraMetadata?: Record<string, string>;
+    /** Changes the idempotency key, e.g. when the number of paid places changes. */
+    idempotencySuffix?: string;
   },
 ) {
   const params = stablePaymentIntentParams(options);
-  const idempotencyKey = `${PAYMENT_INTENT_KEY_PREFIX}${options.fingerprint}`;
+  const idempotencyKey = `${PAYMENT_INTENT_KEY_PREFIX}${options.fingerprint}${options.idempotencySuffix ?? ""}`;
 
   try {
-    return await stripe.paymentIntents.create(params, { idempotencyKey });
+    const intent = await stripe.paymentIntents.create(params, { idempotencyKey });
+    if (intent.status === "canceled" && options.idempotencySuffix !== undefined) {
+      // The hold expired and this payment was cancelled; start a fresh one.
+      return await stripe.paymentIntents.create(params, {
+        idempotencyKey: `${idempotencyKey}_${Date.now()}`,
+      });
+    }
+    return intent;
   } catch (error) {
     const existing = await findExistingPaymentIntent(
       stripe,

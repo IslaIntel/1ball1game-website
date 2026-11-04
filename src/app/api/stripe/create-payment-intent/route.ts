@@ -11,6 +11,12 @@ import {
 import { validateRegistrationPayload } from "@/lib/submit-registration";
 import { SPRING_SEASON, WINTER_SEASON } from "@/lib/registration-status";
 import { getWinterStreetballPrice } from "@/lib/stripe-winter-product";
+import {
+  attachPayment,
+  billableChildren,
+  getRegistrationChildren,
+  winterCapActive,
+} from "@/lib/winter-capacity";
 
 type CreatePaymentIntentBody = RegistrationPayload;
 
@@ -80,17 +86,61 @@ export async function POST(request: Request) {
   const fingerprint = registrationFingerprint(payload);
   const clientIp = getClientIp(request);
 
+  // With the session cap on, charge only the children who hold a place.
+  let capacity: { registrationId: string; billableIds: string[] } | null = null;
+  if (winterCapActive()) {
+    try {
+      const { registrationId, children } = await getRegistrationChildren(payload);
+      const billable = billableChildren(children);
+      if (billable.length === 0) {
+        return NextResponse.json(
+          {
+            error: "No places are being held for payment. Please go back and continue again.",
+            waitlistOnly: children.length > 0,
+          },
+          { status: 409 },
+        );
+      }
+      capacity = { registrationId, billableIds: billable.map((c) => c.playerId) };
+    } catch (error) {
+      console.error("Capacity lookup before payment failed:", error);
+      return NextResponse.json(
+        { error: "We could not confirm your places. Please try again." },
+        { status: 502 },
+      );
+    }
+  }
+
   try {
     const price = await getWinterStreetballPrice(stripe);
-    const amount = price.unitAmount * playerCount;
+    const chargedCount = capacity ? capacity.billableIds.length : playerCount;
+    const amount = price.unitAmount * chargedCount;
     const paymentIntent = await createOrReusePaymentIntent(stripe, {
       amount,
       email,
-      playerCount,
+      playerCount: chargedCount,
       fingerprint,
       season: WINTER_SEASON,
       price,
+      ...(capacity
+        ? {
+            extraMetadata: {
+              registration_id: capacity.registrationId,
+              billable_count: String(chargedCount),
+              billable_player_ids: capacity.billableIds.join(","),
+            },
+            // Player numbers only, to stay well under Stripe's key length limit.
+            idempotencySuffix: `_cap_${capacity.billableIds.map((id) => id.split(":").pop()).join("+")}`,
+          }
+        : {}),
     });
+
+    if (capacity) {
+      await attachPayment({
+        playerIds: capacity.billableIds,
+        paymentIntentId: paymentIntent.id,
+      });
+    }
 
     await syncPaymentIntentDetails(
       stripe,

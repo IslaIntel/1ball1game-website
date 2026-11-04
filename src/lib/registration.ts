@@ -1,3 +1,6 @@
+import { WINTER_SEASON } from "@/lib/registration-status";
+import { WINTER_CAP_ENABLED } from "@/lib/winter-capacity-config";
+import { winterSessionById } from "@/lib/winter-streetball";
 /** Winter Indoor Streetball 2026, $175 per player. Checkout uses the Stripe product price. */
 export const FEE_CENTS = 17500;
 export const MAX_PLAYERS = 6;
@@ -133,6 +136,8 @@ export type PlayerInfo = {
   school: string;
   buddyRequest: string;
   jerseySize: string;
+  /** Winter Streetball session the parent picked (only used when the cap is on). */
+  sessionId?: string;
   emergencyContactName: string;
   emergencyPhone: string;
   hasMedicalConditions: "" | "yes" | "no";
@@ -188,6 +193,7 @@ export const emptyPlayer = (): PlayerInfo => ({
   school: "",
   buddyRequest: "",
   jerseySize: "",
+  sessionId: "",
   emergencyContactName: "",
   emergencyPhone: "",
   hasMedicalConditions: "",
@@ -433,6 +439,12 @@ export function validateStep(
       if (!player.school) errors[`players.${i}.school`] = "Choose a school.";
       if (!player.jerseySize)
         errors[`players.${i}.jerseySize`] = "Choose a jersey size.";
+      if (WINTER_CAP_ENABLED && data.season === WINTER_SEASON) {
+        const session = winterSessionById(player.sessionId);
+        if (!session) errors[`players.${i}.sessionId`] = "Choose a weekly session.";
+        else if (player.grade && session.grade !== player.grade)
+          errors[`players.${i}.sessionId`] = "Choose a session for this player’s grade.";
+      }
     });
   }
 

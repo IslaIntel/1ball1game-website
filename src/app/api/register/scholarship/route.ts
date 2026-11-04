@@ -7,6 +7,13 @@ import { redeemScholarshipCode } from "@/lib/stripe-coupon";
 import { submitRegistration, validateRegistrationPayload } from "@/lib/submit-registration";
 import { SPRING_SEASON, WINTER_SEASON } from "@/lib/registration-status";
 import { getStripe } from "@/lib/stripe";
+import {
+  billableChildren,
+  confirmPlaces,
+  getRegistrationChildren,
+  winterCapActive,
+} from "@/lib/winter-capacity";
+import type { EnrollmentChild } from "@/lib/winter-capacity-config";
 
 type ScholarshipBody = {
   payload?: RegistrationPayload;
@@ -69,9 +76,33 @@ export async function POST(request: Request) {
   const parentName = `${payload.parent.firstName.trim()} ${payload.parent.lastName.trim()}`.trim();
   const fingerprint = registrationFingerprint(payload);
 
+  // With the session cap, the code only covers children who hold a place.
+  // A waitlisted child never redeems a code.
+  let capacity: { registrationId: string; billableIds: string[] } | null = null;
+  if (winterCapActive()) {
+    try {
+      const { registrationId, children } = await getRegistrationChildren(payload);
+      const billable = billableChildren(children);
+      if (billable.length === 0) {
+        return NextResponse.json(
+          { error: "No places are being held for this registration. Please go back and continue again." },
+          { status: 409 },
+        );
+      }
+      capacity = { registrationId, billableIds: billable.map((c) => c.playerId) };
+    } catch (error) {
+      console.error("Capacity lookup before scholarship failed:", error);
+      return NextResponse.json(
+        { error: "We could not confirm your places. Please try again." },
+        { status: 502 },
+      );
+    }
+  }
+  const coveredCount = capacity ? capacity.billableIds.length : playerCount;
+
   let redeemed: Awaited<ReturnType<typeof redeemScholarshipCode>>;
   try {
-    redeemed = await redeemScholarshipCode(stripe, promotionCode, playerCount, {
+    redeemed = await redeemScholarshipCode(stripe, promotionCode, coveredCount, {
       email: payload.parent.email.trim(),
       name: parentName,
       fingerprint,
@@ -90,7 +121,18 @@ export async function POST(request: Request) {
   }
 
   try {
+    let enrollment: EnrollmentChild[] | undefined;
+    if (capacity) {
+      await confirmPlaces({
+        playerIds: capacity.billableIds,
+        paymentStatus: "scholarship",
+        amountPaidCentsPerChild: 0,
+      });
+      enrollment = (await getRegistrationChildren(payload)).children;
+    }
+
     await submitRegistration({ ...payload, season: WINTER_SEASON }, {
+      ...(capacity ? { registrationId: capacity.registrationId, enrollment } : {}),
       paymentStatus: "scholarship",
       season: WINTER_SEASON,
       couponCode: redeemed.result.code,
