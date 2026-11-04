@@ -32,6 +32,22 @@ export type EnrollmentChild = {
   reservationExpiresAt: string;
 };
 
+/** What the public form sees: no counts, just whether a place or the waitlist is open. */
+export type PublicSessionAvailability = {
+  id: string;
+  available: boolean;
+  label: "Spots available" | "Waitlist available";
+};
+
+export function toPublicAvailability(session: SessionAvailability): PublicSessionAvailability {
+  const available = session.remaining > 0;
+  return {
+    id: session.id,
+    available,
+    label: available ? "Spots available" : "Waitlist available",
+  };
+}
+
 export type SessionAvailability = {
   id: string;
   capacity: number;

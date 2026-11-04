@@ -1,12 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { RegistrationForm } from "@/components/register/RegistrationForm";
 import {
   SPRING_SEASON,
   WINTER_SEASON,
   type RegistrationSeason,
 } from "@/lib/registration-status";
+import {
+  WINTER_CAP_ENABLED,
+  type PublicSessionAvailability,
+} from "@/lib/winter-capacity-config";
+import { WINTER_SCHEDULE } from "@/lib/winter-streetball";
 
 export function RegistrationFlow() {
   const [season, setSeason] = useState<RegistrationSeason | null>(null);
@@ -33,6 +38,23 @@ function SeasonPicker({
 }: {
   onSelect: (season: RegistrationSeason) => void;
 }) {
+  const [availability, setAvailability] = useState<Record<string, PublicSessionAvailability>>({});
+
+  useEffect(() => {
+    if (!WINTER_CAP_ENABLED) return;
+    let cancelled = false;
+    void fetch("/api/sessions", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((data: { sessions?: PublicSessionAvailability[] }) => {
+        if (cancelled || !data.sessions) return;
+        setAvailability(Object.fromEntries(data.sessions.map((s) => [s.id, s])));
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <div className="mx-auto max-w-5xl">
       <p className="eyebrow text-ink/50">Registration</p>
@@ -92,21 +114,32 @@ function SeasonPicker({
           <span className="mt-4 block text-sm text-ink">
             <span className="block font-semibold">Weekly schedule</span>
             <span className="mt-2 grid gap-2 text-ink/70">
-              <span>
-                <span className="block font-semibold text-ink">Monday</span>
-                5–6 pm · 2nd grade girls
-                <span className="block">6–7 pm · 2nd grade boys</span>
-              </span>
-              <span>
-                <span className="block font-semibold text-ink">Wednesday</span>
-                5–6 pm · 4th grade girls
-                <span className="block">6–7 pm · 4th grade boys</span>
-              </span>
-              <span>
-                <span className="block font-semibold text-ink">Thursday</span>
-                5–6 pm · 3rd grade girls
-                <span className="block">6–7 pm · 3rd grade boys</span>
-              </span>
+              {WINTER_SCHEDULE.map((day) => (
+                <span key={day.day}>
+                  <span className="block font-semibold text-ink">{day.day}</span>
+                  {day.sessions.map((session) => {
+                    const status = availability[session.id];
+                    return (
+                      <span key={session.id} className="flex flex-wrap items-center gap-x-2">
+                        <span>
+                          {session.time} · {session.group}
+                        </span>
+                        {status ? (
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                              status.available
+                                ? "bg-ink/5 text-ink/70"
+                                : "bg-magenta/10 text-magenta-deep"
+                            }`}
+                          >
+                            {status.label}
+                          </span>
+                        ) : null}
+                      </span>
+                    );
+                  })}
+                </span>
+              ))}
             </span>
           </span>
         </button>

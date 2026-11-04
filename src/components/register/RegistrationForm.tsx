@@ -43,12 +43,12 @@ import {
   WINTER_CAP_ENABLED,
   hasPlace,
   type EnrollmentChild,
-  type SessionAvailability,
+  type PublicSessionAvailability,
 } from "@/lib/winter-capacity-config";
 import {
+  WINTER_SCHEDULE,
   winterSessionById,
   winterSessionText,
-  winterSessionsForGrade,
 } from "@/lib/winter-streetball";
 
 type Reservation = {
@@ -121,7 +121,7 @@ export function RegistrationForm({
   const paymentRef = useRef<RegistrationPaymentHandle>(null);
   // Winter session cap: places left per session, and this family's places.
   const capOn = WINTER_CAP_ENABLED && requiresPayment;
-  const [availability, setAvailability] = useState<Record<string, SessionAvailability>>({});
+  const [availability, setAvailability] = useState<Record<string, PublicSessionAvailability>>({});
   const [reservation, setReservation] = useState<Reservation | null>(null);
   const [reserveState, setReserveState] = useState<"idle" | "loading" | "error">("idle");
   const [outcome, setOutcome] = useState<EnrollmentChild[] | null>(null);
@@ -146,7 +146,7 @@ export function RegistrationForm({
     let cancelled = false;
     void fetch("/api/sessions", { cache: "no-store" })
       .then((r) => r.json())
-      .then((data: { sessions?: SessionAvailability[] }) => {
+      .then((data: { sessions?: PublicSessionAvailability[] }) => {
         if (cancelled || !data.sessions) return;
         setAvailability(Object.fromEntries(data.sessions.map((s) => [s.id, s])));
       })
@@ -764,7 +764,7 @@ function PlayersStep({
   grades: readonly string[];
   season: string;
   capOn: boolean;
-  availability: Record<string, SessionAvailability>;
+  availability: Record<string, PublicSessionAvailability>;
   errors: FieldErrors;
   onChange: <K extends keyof PlayerInfo>(
     index: number,
@@ -797,6 +797,21 @@ function PlayersStep({
               ) : null}
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
+              {capOn ? (
+                <SessionField
+                  index={i}
+                  player={player}
+                  availability={availability}
+                  error={errors[`players.${i}.sessionId`]}
+                  onChange={(sessionId) => {
+                    // The session sets both grade and gender.
+                    const session = winterSessionById(sessionId);
+                    onChange(i, "sessionId", sessionId);
+                    onChange(i, "grade", session?.grade ?? "");
+                    onChange(i, "gender", session?.gender ?? "");
+                  }}
+                />
+              ) : null}
               <Field
                 label="First name"
                 id={`player-${i}-first`}
@@ -837,6 +852,8 @@ function PlayersStep({
                   onChange={(e) => onChange(i, "dateOfBirth", e.target.value)}
                 />
               </Field>
+              {capOn ? null : (
+                <>
               <Field
                 label="Gender identity"
                 id={`player-${i}-gender`}
@@ -877,15 +894,8 @@ function PlayersStep({
                   ))}
                 </select>
               </Field>
-              {capOn ? (
-                <SessionField
-                  index={i}
-                  player={player}
-                  availability={availability}
-                  error={errors[`players.${i}.sessionId`]}
-                  onChange={(value) => onChange(i, "sessionId", value)}
-                />
-              ) : null}
+                </>
+              )}
               <Field
                 label="School attending"
                 id={`player-${i}-school`}
@@ -1280,11 +1290,10 @@ function SessionField({
 }: {
   index: number;
   player: PlayerInfo;
-  availability: Record<string, SessionAvailability>;
+  availability: Record<string, PublicSessionAvailability>;
   error?: string;
-  onChange: (value: string) => void;
+  onChange: (sessionId: string) => void;
 }) {
-  const options = winterSessionsForGrade(player.grade);
   const id = `player-${index}-session`;
   const selected = availability[player.sessionId ?? ""];
   return (
@@ -1294,34 +1303,38 @@ function SessionField({
         id={id}
         required
         error={error}
-        hint={
-          player.grade
-            ? "Each group has 12 places. When a group is full, your child joins the free waitlist and is not charged."
-            : "Choose a grade first."
-        }
+        hint="The session sets your player’s grade and group. If a session shows Waitlist available, your player joins the free waitlist and is not charged."
       >
         <select
           id={id}
           className={fieldClass}
-          value={options.some((o) => o.id === player.sessionId) ? player.sessionId : ""}
+          value={winterSessionById(player.sessionId) ? player.sessionId : ""}
           onChange={(e) => onChange(e.target.value)}
-          disabled={!player.grade}
         >
           <option value="">Select a session</option>
-          {options.map((session) => {
-            const seats = availability[session.id];
-            const suffix = seats ? ` — ${seats.label}` : "";
-            return (
-              <option key={session.id} value={session.id}>
-                {`${winterSessionText(session)}${suffix}`}
-              </option>
-            );
-          })}
+          {WINTER_SCHEDULE.map((day) => (
+            <optgroup key={day.day} label={day.day}>
+              {day.sessions.map((session) => {
+                const status = availability[session.id];
+                return (
+                  <option key={session.id} value={session.id}>
+                    {`${session.day} ${session.time} · ${session.group}${status ? ` — ${status.label}` : ""}`}
+                  </option>
+                );
+              })}
+            </optgroup>
+          ))}
         </select>
       </Field>
-      {selected && selected.remaining === 0 ? (
-        <p className="mt-1.5 text-sm font-medium text-magenta-deep">
-          Full — Join the free waitlist. You won’t be charged for this player.
+      {selected ? (
+        <p
+          className={`mt-1.5 text-sm font-medium ${
+            selected.available ? "text-ink/70" : "text-magenta-deep"
+          }`}
+        >
+          {selected.available
+            ? "Spots available."
+            : "Waitlist available. You won’t be charged for this player."}
         </p>
       ) : null}
     </div>
