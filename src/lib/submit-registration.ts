@@ -12,6 +12,7 @@ import {
 } from "@/lib/registration";
 import { buildRegistrationSummaryText } from "@/lib/build-registration-summary";
 import { WINTER_SEASON } from "@/lib/registration-status";
+import { buildWinterWelcomeEmail } from "@/lib/build-winter-welcome-email";
 
 const WEBHOOK_URL =
   process.env.REGISTER_WEBHOOK_URL ??
@@ -71,11 +72,15 @@ export function validateRegistrationPayload(
   return null;
 }
 
-async function sendResendNotification(
-  parentEmail: string,
-  subject: string,
-  body: string,
-) {
+type ResendEmail = {
+  to: string[];
+  bcc?: string[];
+  subject: string;
+  text: string;
+  html?: string;
+};
+
+async function sendResendEmail(email: ResendEmail) {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) return;
 
@@ -89,13 +94,7 @@ async function sendResendNotification(
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      from,
-      to: [parentEmail],
-      bcc: [INFO_EMAIL],
-      subject,
-      text: body,
-    }),
+    body: JSON.stringify({ from, reply_to: INFO_EMAIL, ...email }),
   });
 }
 
@@ -139,6 +138,9 @@ export async function submitRegistration(
     submittedAt,
     clientIp,
   });
+
+  // Winter families get a welcome email; the full summary goes to the team only.
+  const welcomeEmail = complimentary ? null : buildWinterWelcomeEmail(payload);
 
   const waiverSummary = WAIVERS.map(
     (waiver) => `${waivers[waiver.key] ? "Agreed" : "Not agreed"}: ${waiver.title}`,
@@ -188,6 +190,9 @@ export async function submitRegistration(
     notification_recipients: `${parent.email.trim()},${INFO_EMAIL}`,
     registration_email_body: registrationEmailBody,
     registration_email_subject: `New 1B1G ${season} registration — ${parent.firstName.trim()} ${parent.lastName.trim()}`,
+    parent_email_subject: welcomeEmail?.subject ?? "",
+    parent_email_text: welcomeEmail?.text ?? "",
+    parent_email_html: welcomeEmail?.html ?? "",
     ...flattenPlayers(players),
   };
 
@@ -201,11 +206,26 @@ export async function submitRegistration(
     throw new Error("Unable to submit registration to webhook.");
   }
 
-  await sendResendNotification(
-    parent.email.trim(),
-    sheetRow.registration_email_subject,
-    registrationEmailBody,
-  );
+  if (welcomeEmail) {
+    await sendResendEmail({
+      to: [parent.email.trim()],
+      subject: welcomeEmail.subject,
+      text: welcomeEmail.text,
+      html: welcomeEmail.html,
+    });
+    await sendResendEmail({
+      to: [INFO_EMAIL],
+      subject: sheetRow.registration_email_subject,
+      text: registrationEmailBody,
+    });
+  } else {
+    await sendResendEmail({
+      to: [parent.email.trim()],
+      bcc: [INFO_EMAIL],
+      subject: sheetRow.registration_email_subject,
+      text: registrationEmailBody,
+    });
+  }
 
   return { playerCount, totalCents, feePerPlayerCents: FEE_CENTS };
 }

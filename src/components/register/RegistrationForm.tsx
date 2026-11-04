@@ -217,7 +217,7 @@ export function RegistrationForm({
   if (status === "success") {
     return (
       <RegistrationSuccess
-        playerNames={players.map((p) => `${p.firstName} ${p.lastName}`).join(", ")}
+        players={players}
         email={parent.email}
         season={season}
         paid={requiresPayment}

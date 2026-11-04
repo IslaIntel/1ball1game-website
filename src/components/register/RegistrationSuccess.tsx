@@ -3,8 +3,15 @@
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import type { PlayerInfo } from "@/lib/registration";
+import {
+  WINTER_SCHEDULE,
+  WINTER_STREETBALL,
+  winterSessionLabel,
+} from "@/lib/winter-streetball";
+
 type RegistrationSuccessProps = {
-  playerNames: string;
+  players: PlayerInfo[];
   email: string;
   season: string;
   /** False for Spring interest sign-ups, where no payment is taken. */
@@ -20,83 +27,83 @@ const fadeUp = {
   }),
 };
 
-function PaidConfirmation({
-  playerNames,
+function WinterConfirmation({
+  players,
   email,
-  season,
-}: Omit<RegistrationSuccessProps, "paid">) {
+}: Pick<RegistrationSuccessProps, "players" | "email">) {
   return (
     <>
       <motion.div custom={1} variants={fadeUp} className="space-y-4 text-ink/70">
-        <p>Dear Parent/Guardian,</p>
         <p>
-          Thank you for registering{" "}
-          <strong className="text-ink">{playerNames}</strong> for the{" "}
-          <strong className="text-ink">1B1G {season} Soccer League</strong> in
-          partnership with your school&apos;s PTA! We are thrilled to welcome
-          your family to the program and are excited to serve your school
-          community.
-        </p>
-        <p>
-          A confirmation email will be sent to{" "}
+          Your registration is confirmed and we can&apos;t wait to see your{" "}
+          {players.length > 1 ? "players" : "player"} in the gym. A welcome
+          email with these details is on its way to{" "}
           <strong className="text-ink">{email}</strong>.
-        </p>
-        <p>
-          This season, <strong className="text-ink">1B1G</strong> and{" "}
-          <strong className="text-ink">Surf Soccer Nation</strong> are
-          operating hand-in-hand with your PTA leadership to build the most
-          welcoming, fun, and engaging soccer environment possible for our
-          players.
-        </p>
-        <p>
-          Here is a look at what your active registration includes through
-          1B1G and Surf Soccer:
         </p>
       </motion.div>
 
       <motion.div
         custom={2}
         variants={fadeUp}
-        className="space-y-5 rounded-2xl border border-magenta/20 bg-magenta/5 px-5 py-5 sm:px-6"
+        className="rounded-2xl border border-magenta/20 bg-magenta/5 px-5 py-5 sm:px-6"
       >
-        <div>
-          <h2 className="font-semibold text-magenta-deep">
-            Player &amp; Coaching Development Modules
-          </h2>
-          <p className="mt-1.5 text-sm leading-relaxed text-ink/70">
-            As part of your membership in 1B1G and our partnership with the
-            national soccer brand, Surf Soccer, you will receive access to
-            exclusive coaching and player training modules directly through
-            their platform.
-          </p>
-        </div>
+        <h2 className="font-semibold text-magenta-deep">Your weekly session</h2>
+        <ul className="mt-3 divide-y divide-magenta/15">
+          {players.map((player, i) => (
+            <li
+              key={i}
+              className="flex flex-col gap-0.5 py-2.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4"
+            >
+              <span className="font-semibold text-ink">
+                {player.firstName} {player.lastName}
+              </span>
+              <span className="text-sm text-ink/70">
+                {winterSessionLabel(player)}
+              </span>
+            </li>
+          ))}
+        </ul>
       </motion.div>
 
-      <motion.div custom={3} variants={fadeUp} className="space-y-3">
-        <h2 className="font-display text-2xl font-semibold text-ink">
-          What&apos;s Next?
-        </h2>
+      <motion.div custom={3} variants={fadeUp} className="space-y-6">
+        <p className="leading-relaxed text-ink/70">{WINTER_STREETBALL.intro}</p>
+
+        <div>
+          <h2 className="font-display text-2xl font-semibold text-ink">
+            Program details
+          </h2>
+          <dl className="mt-3 space-y-2 text-ink/70">
+            {WINTER_STREETBALL.details.map((detail) => (
+              <div key={detail.label}>
+                <dt className="inline font-semibold text-ink">{detail.label}:</dt>{" "}
+                <dd className="inline">{detail.value}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+
+        <div>
+          <h2 className="font-display text-2xl font-semibold text-ink">
+            Weekly schedule
+          </h2>
+          <div className="mt-3 grid gap-4 sm:grid-cols-3">
+            {WINTER_SCHEDULE.map((day) => (
+              <div key={day.day} className="rounded-xl border border-ink/10 px-4 py-3">
+                <p className="font-semibold text-ink">{day.day}</p>
+                {day.sessions.map((session) => (
+                  <p key={session.group} className="mt-1 text-sm text-ink/70">
+                    {session.time} · {session.group}
+                  </p>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+
         <p className="text-ink/70">
-          As teams form and we work around the schedules of our parent
-          volunteer coaches, you will receive a detailed email with practice
-          times and rosters. Games are played on Saturdays. Please keep an
-          eye out for additional updates from 1B1G and your PTA in the
-          coming weeks.
-        </p>
-        <p className="text-ink/70">
-          Welcome to the club, and we look forward to an amazing{" "}
-          {season.toLowerCase().includes("winter") ? "winter" : "spring"}{" "}
-          season together!
-        </p>
-        <p className="text-ink/70">
-          Best regards,
+          See you on the court,
           <br />
-          <strong className="text-ink">The 1B1G / Surf Soccer Team</strong>
-          <br />
-          <span className="text-ink/55">
-            In Partnership with Surf Soccer Nation &amp; Your School&apos;s
-            PTA
-          </span>
+          <strong className="text-ink">The 1B1G Team</strong>
         </p>
       </motion.div>
     </>
@@ -134,7 +141,7 @@ function InterestConfirmation({ season }: { season: string }) {
 }
 
 export function RegistrationSuccess({
-  playerNames,
+  players,
   email,
   season,
   paid = true,
@@ -170,22 +177,21 @@ export function RegistrationSuccess({
             className="mx-auto mt-2 h-12 w-12 object-contain"
           />
           <span className="eyebrow mt-6 inline-block text-magenta">
-            {paid ? "Registration received" : "Information received"}
+            {paid ? "Registration confirmed" : "Information received"}
           </span>
           <h1 className="mt-3 font-display text-3xl font-semibold text-ink sm:text-4xl">
             {paid
-              ? `Welcome to the ${season} Soccer Season`
+              ? `Welcome to ${WINTER_STREETBALL.name}!`
               : "Thank you for your interest"}
           </h1>
+          {paid ? (
+            <p className="mt-3 font-semibold text-ink">{WINTER_STREETBALL.dates}</p>
+          ) : null}
         </motion.div>
 
         <div className="space-y-6 px-6 py-8 sm:px-10 sm:py-10">
           {paid ? (
-            <PaidConfirmation
-              playerNames={playerNames}
-              email={email}
-              season={season}
-            />
+            <WinterConfirmation players={players} email={email} />
           ) : (
             <InterestConfirmation season={season} />
           )}
