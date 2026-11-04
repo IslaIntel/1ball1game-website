@@ -37,6 +37,11 @@ export const JERSEY_SIZES = [
   "Youth Small (YS)",
   "Youth Medium (YM)",
   "Youth Large (YL)",
+  "Youth Extra Large (YXL)",
+  "Adult Small (AS)",
+  "Adult Medium (AM)",
+  "Adult Large (AL)",
+  "Adult Extra Large (AXL)",
 ] as const;
 
 export const RELATIONSHIPS = ["Parent", "Legal Guardian", "Other"] as const;
@@ -80,6 +85,9 @@ export const STEP_TITLES = [
   "Review and acknowledge",
   "Confirm & pay",
 ] as const;
+
+/** Spring collects no payment, so its last step is just "Confirm". */
+export const SPRING_STEP_TITLES = [...STEP_TITLES.slice(0, 4), "Confirm"] as const;
 
 export const STEP_DESCRIPTIONS = [
   "We collect this once, even when you register multiple siblings.",
@@ -208,7 +216,8 @@ export type WaiverDoc = {
   note?: string;
 };
 
-export const WAIVERS: WaiverDoc[] = [
+/** Waivers written for the school PTA program. Spring uses these; Winter adapts them below. */
+const PTA_WAIVERS: WaiverDoc[] = [
   {
     key: "liabilityRelease",
     title: "Comprehensive Liability Waiver, Release & Indemnity Agreement",
@@ -253,7 +262,7 @@ export const WAIVERS: WaiverDoc[] = [
     sections: [
       {
         heading: "Why this matters:",
-        body: "The 1 Ball 1 Game Foundation is established purely for the positive, recreational, and instructional development of Kindergarten through 2nd Grade children. To protect the safety, emotional well-being, and positive environment of our participants and volunteer staff, 1B1G enforces a strict Zero-Tolerance Policy regarding sideline misconduct.",
+        body: "The 1 Ball 1 Game Foundation is established purely for the positive, recreational, and instructional development of Kindergarten through 6th Grade children. To protect the safety, emotional well-being, and positive environment of our participants and volunteer staff, 1B1G enforces a strict Zero-Tolerance Policy regarding sideline misconduct.",
       },
       {
         heading: "Prohibited Behavior:",
@@ -305,9 +314,46 @@ export const WAIVERS: WaiverDoc[] = [
 ];
 
 /** Spring omits the photo and fundraising waivers. */
-export const SPRING_WAIVERS: WaiverDoc[] = WAIVERS.filter(
+export const SPRING_WAIVERS: WaiverDoc[] = PTA_WAIVERS.filter(
   (waiver) => waiver.key !== "photoMedia" && waiver.key !== "fundraisingAgreement",
 );
+
+/**
+ * Winter Streetball is indoor soccer at Lemon Road Elementary Gym run by
+ * professional coaches, so its waivers describe that program instead of the
+ * PTA season. Each pair is [text in the PTA waiver, Winter replacement].
+ */
+const WINTER_WAIVER_WORDING: [string, string][] = [
+  [
+    "activities managed by the School PTA Soccer Club.",
+    "activities of the Winter Streetball indoor soccer program at Lemon Road Elementary Gym.",
+  ],
+  ["presence at school-operated soccer events.", "presence at Winter Streetball sessions."],
+  [
+    "and my school’s PTA Soccer Club to utilize photographs or video recordings taken during recreational matches, practices, and events.",
+    "to utilize photographs or video recordings taken during Winter Streetball sessions and events.",
+  ],
+  ["Kindergarten through 6th Grade children.", "2nd through 4th Grade children."],
+  ["our participants and volunteer staff,", "our participants and coaching staff,"],
+  ["regarding sideline misconduct.", "regarding spectator misconduct."],
+  [
+    "directed at volunteer coaches, field coordinators, opposing players, or children will be immediately and permanently banned from all field locations.",
+    "directed at coaches, program staff, opposing players, or children will be immediately and permanently banned from all program locations.",
+  ],
+];
+
+function toWinterWording(text: string) {
+  return WINTER_WAIVER_WORDING.reduce((out, [from, to]) => out.replace(from, to), text);
+}
+
+/** Winter Streetball waivers (the paid registration). */
+export const WAIVERS: WaiverDoc[] = PTA_WAIVERS.map((waiver) => ({
+  ...waiver,
+  sections: waiver.sections.map((section) => ({
+    ...section,
+    body: toWinterWording(section.body),
+  })),
+}));
 
 export function formatUsd(cents: number) {
   return new Intl.NumberFormat("en-US", {

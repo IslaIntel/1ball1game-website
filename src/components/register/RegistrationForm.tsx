@@ -21,6 +21,7 @@ import {
   STEP_DESCRIPTIONS,
   STEP_LABELS,
   STEP_TITLES,
+  SPRING_STEP_TITLES,
   type FieldErrors,
   type ParentInfo,
   type PlayerInfo,
@@ -254,7 +255,7 @@ export function RegistrationForm({
         </h1>
         <p className="mt-5 max-w-md text-base leading-relaxed text-ink/65">
           {requiresPayment
-            ? "Register your 2nd through 4th graders for a fun, community-driven season with their local school’s PTA Soccer Club."
+            ? "Register your 2nd through 4th graders for Winter Streetball: indoor soccer at Lemon Road Elementary Gym, with small-sided games led by professional coaches."
             : "Returning in April, the PTA Soccer Rec Program brings the game back to the grass fields for a fun, parent-led spring season for Kindergarten through 6th grade. Please register today to express your interest so we can accurately request our county field allocations. NO PAYMENT REQUIRED TODAY - REGISTERING INTEREST ONLY. Practice dates and game days to be released in January."}
         </p>
         {requiresPayment ? (
@@ -269,7 +270,11 @@ export function RegistrationForm({
           <div className="relative aspect-[4/5]">
             <Image
               src="/images/hero-soccer-k2.png"
-              alt="2nd through 4th grade children playing soccer"
+              alt={
+                requiresPayment
+                  ? "2nd through 4th grade children playing soccer"
+                  : "Kindergarten through 6th grade children playing soccer"
+              }
               fill
               priority
               sizes="40vw"
@@ -310,7 +315,7 @@ export function RegistrationForm({
             Step {step + 1} of {STEP_LABELS.length}
           </p>
           <h2 className="mt-3 font-display text-2xl font-semibold text-ink sm:text-3xl">
-            {STEP_TITLES[step]}
+            {(requiresPayment ? STEP_TITLES : SPRING_STEP_TITLES)[step]}
           </h2>
           <p className="mt-2 text-ink/60">
             {!requiresPayment && step === 4
@@ -438,7 +443,10 @@ export function RegistrationForm({
         </div>
 
         <p className="mt-5 text-center text-xs text-ink/45">
-          Registration data is stored securely for the school PTA season. Questions?{" "}
+          {requiresPayment
+            ? "Registration data is stored securely and used only to run Winter Streetball at Lemon Road."
+            : "Registration data is stored securely for the school PTA season."}{" "}
+          Questions?{" "}
           <a
             href="mailto:info@1ball1game.org"
             className="font-medium text-ink underline-offset-2 hover:underline"
@@ -825,8 +833,10 @@ function PlayersStep({
         </p>
       )}
       <p className="text-sm text-ink/50">
-        Register up to {maxPlayers} siblings on one form. Players are grouped
-        primarily by school and grade to strengthen friendships and community.
+        Register up to {maxPlayers} siblings on one form.{" "}
+        {season === WINTER_SEASON
+          ? "Players are grouped by grade and gender, with one 1-hour session each week."
+          : "Players are grouped primarily by school and grade to strengthen friendships and community."}
       </p>
     </section>
   );
