@@ -7,6 +7,7 @@ type RegistrationSuccessProps = {
   playerNames: string;
   email: string;
   season: string;
+  /** False for Spring interest sign-ups, where no payment is taken. */
   paid?: boolean;
 };
 
@@ -18,6 +19,119 @@ const fadeUp = {
     transition: { delay: 0.08 * i, duration: 0.55, ease: [0.16, 1, 0.3, 1] as const },
   }),
 };
+
+function PaidConfirmation({
+  playerNames,
+  email,
+  season,
+}: Omit<RegistrationSuccessProps, "paid">) {
+  return (
+    <>
+      <motion.div custom={1} variants={fadeUp} className="space-y-4 text-ink/70">
+        <p>Dear Parent/Guardian,</p>
+        <p>
+          Thank you for registering{" "}
+          <strong className="text-ink">{playerNames}</strong> for the{" "}
+          <strong className="text-ink">1B1G {season} Soccer League</strong> in
+          partnership with your school&apos;s PTA! We are thrilled to welcome
+          your family to the program and are excited to serve your school
+          community.
+        </p>
+        <p>
+          A confirmation email will be sent to{" "}
+          <strong className="text-ink">{email}</strong>.
+        </p>
+        <p>
+          This season, <strong className="text-ink">1B1G</strong> and{" "}
+          <strong className="text-ink">Surf Soccer Nation</strong> are
+          operating hand-in-hand with your PTA leadership to build the most
+          welcoming, fun, and engaging soccer environment possible for our
+          players.
+        </p>
+        <p>
+          Here is a look at what your active registration includes through
+          1B1G and Surf Soccer:
+        </p>
+      </motion.div>
+
+      <motion.div
+        custom={2}
+        variants={fadeUp}
+        className="space-y-5 rounded-2xl border border-magenta/20 bg-magenta/5 px-5 py-5 sm:px-6"
+      >
+        <div>
+          <h2 className="font-semibold text-magenta-deep">
+            Player &amp; Coaching Development Modules
+          </h2>
+          <p className="mt-1.5 text-sm leading-relaxed text-ink/70">
+            As part of your membership in 1B1G and our partnership with the
+            national soccer brand, Surf Soccer, you will receive access to
+            exclusive coaching and player training modules directly through
+            their platform.
+          </p>
+        </div>
+      </motion.div>
+
+      <motion.div custom={3} variants={fadeUp} className="space-y-3">
+        <h2 className="font-display text-2xl font-semibold text-ink">
+          What&apos;s Next?
+        </h2>
+        <p className="text-ink/70">
+          As teams form and we work around the schedules of our parent
+          volunteer coaches, you will receive a detailed email with practice
+          times and rosters. Games are played on Saturdays. Please keep an
+          eye out for additional updates from 1B1G and your PTA in the
+          coming weeks.
+        </p>
+        <p className="text-ink/70">
+          Welcome to the club, and we look forward to an amazing{" "}
+          {season.toLowerCase().includes("winter") ? "winter" : "spring"}{" "}
+          season together!
+        </p>
+        <p className="text-ink/70">
+          Best regards,
+          <br />
+          <strong className="text-ink">The 1B1G / Surf Soccer Team</strong>
+          <br />
+          <span className="text-ink/55">
+            In Partnership with Surf Soccer Nation &amp; Your School&apos;s
+            PTA
+          </span>
+        </p>
+      </motion.div>
+    </>
+  );
+}
+
+function InterestConfirmation({ season }: { season: string }) {
+  return (
+    <motion.div custom={1} variants={fadeUp} className="space-y-4 text-ink/70">
+      <p>
+        Thank you for your interest in the{" "}
+        <strong className="text-ink">{season}</strong> soccer season. We have
+        successfully received your information, and no payment has been
+        collected or is due at this time.
+      </p>
+      <p>
+        Over the next few weeks, we will be working directly with your
+        school&apos;s PTA and Fairfax County Public Schools / Community Use to
+        identify and secure local field space.
+      </p>
+      <p>
+        We will follow up via email in late January (or once field space is
+        confirmed) with official registration options. That update will
+        include the exact practice dates, times, and field locations so you
+        have the complete schedule before formally registering. Thank you for
+        helping us build a great soccer environment for your school community.
+      </p>
+      <p>
+        Best,
+        <br />
+        <strong className="text-ink">The 1B1G Team</strong>
+      </p>
+    </motion.div>
+  );
+}
 
 export function RegistrationSuccess({
   playerNames,
@@ -56,95 +170,25 @@ export function RegistrationSuccess({
             className="mx-auto mt-2 h-12 w-12 object-contain"
           />
           <span className="eyebrow mt-6 inline-block text-magenta">
-            Registration received
+            {paid ? "Registration received" : "Information received"}
           </span>
           <h1 className="mt-3 font-display text-3xl font-semibold text-ink sm:text-4xl">
-            Welcome to the {season} Soccer Season
+            {paid
+              ? `Welcome to the ${season} Soccer Season`
+              : "Thank you for your interest"}
           </h1>
         </motion.div>
 
         <div className="space-y-6 px-6 py-8 sm:px-10 sm:py-10">
-          <motion.div custom={1} variants={fadeUp} className="space-y-4 text-ink/70">
-            <p>Dear Parent/Guardian,</p>
-            <p>
-              Thank you for registering{" "}
-              <strong className="text-ink">{playerNames}</strong> for the{" "}
-              <strong className="text-ink">1B1G {season} Soccer League</strong> in
-              partnership with your school&apos;s PTA! We are thrilled to welcome
-              your family to the program and are excited to serve your school
-              community.
-            </p>
-            <p>
-              A confirmation email will be sent to{" "}
-              <strong className="text-ink">{email}</strong>.
-            </p>
-            <p>
-              This season, <strong className="text-ink">1B1G</strong> and{" "}
-              <strong className="text-ink">Surf Soccer Nation</strong> are
-              operating hand-in-hand with your PTA leadership to build the most
-              welcoming, fun, and engaging soccer environment possible for our
-              players.
-            </p>
-            {paid ? (
-              <p>
-                Here is a look at what your active registration includes through
-                1B1G and Surf Soccer:
-              </p>
-            ) : (
-              <p>
-                No payment was collected. We have your player information for{" "}
-                {season} and will follow up by email as the season comes together.
-              </p>
-            )}
-          </motion.div>
-
           {paid ? (
-          <motion.div
-            custom={2}
-            variants={fadeUp}
-            className="space-y-5 rounded-2xl border border-magenta/20 bg-magenta/5 px-5 py-5 sm:px-6"
-          >
-            <div>
-              <h2 className="font-semibold text-magenta-deep">
-                Player &amp; Coaching Development Modules
-              </h2>
-              <p className="mt-1.5 text-sm leading-relaxed text-ink/70">
-                As part of your membership in 1B1G and our partnership with the
-                national soccer brand, Surf Soccer, you will receive access to
-                exclusive coaching and player training modules directly through
-                their platform.
-              </p>
-            </div>
-          </motion.div>
-          ) : null}
-
-          <motion.div custom={3} variants={fadeUp} className="space-y-3">
-            <h2 className="font-display text-2xl font-semibold text-ink">
-              What&apos;s Next?
-            </h2>
-            <p className="text-ink/70">
-              As teams form and we work around the schedules of our parent
-              volunteer coaches, you will receive a detailed email with practice
-              times and rosters. Games are played on Saturdays. Please keep an
-              eye out for additional updates from 1B1G and your PTA in the
-              coming weeks.
-            </p>
-            <p className="text-ink/70">
-              Welcome to the club, and we look forward to an amazing{" "}
-              {season.toLowerCase().includes("winter") ? "winter" : "spring"}{" "}
-              season together!
-            </p>
-            <p className="text-ink/70">
-              Best regards,
-              <br />
-              <strong className="text-ink">The 1B1G / Surf Soccer Team</strong>
-              <br />
-              <span className="text-ink/55">
-                In Partnership with Surf Soccer Nation &amp; Your School&apos;s
-                PTA
-              </span>
-            </p>
-          </motion.div>
+            <PaidConfirmation
+              playerNames={playerNames}
+              email={email}
+              season={season}
+            />
+          ) : (
+            <InterestConfirmation season={season} />
+          )}
 
           <motion.div custom={4} variants={fadeUp}>
             <Link
