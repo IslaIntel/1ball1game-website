@@ -13,7 +13,7 @@ with PostHog analytics.
 - **Tailwind CSS v4** for the design system
 - **Framer Motion** for scroll-triggered and load animations
 - **PostHog** for product analytics
-- **AWS Amplify Hosting** (SSR / WEB_COMPUTE) for deployment
+- **Vercel** for hosting and deployment
 
 ## Getting started
 
@@ -25,31 +25,33 @@ npm run dev
 
 Visit http://localhost:3000.
 
-## Deploy to AWS Amplify
+## Deploy (Vercel)
 
-This repo includes an [`amplify.yml`](amplify.yml) build spec and [`.nvmrc`](.nvmrc) (Node 20) for Amplify Hosting compute (Next.js SSR).
+Production is hosted on Vercel (project **`1ball1game-website`**, team **Islaintel**) and serves
+[1ball1game.org](https://1ball1game.org) and [www.1ball1game.org](https://www.1ball1game.org).
 
-### 1. Connect the repository
+- **Production:** push to `main`. Vercel builds with `npm ci` and `npm run build` and promotes the result to the production domains.
+- **Previews:** every other branch gets its own preview URL on `*.vercel.app`.
+- **Rollback:** in the Vercel dashboard, open **Deployments**, pick an earlier production deployment and choose **Instant Rollback**.
 
-1. Open [AWS Amplify Console](https://console.aws.amazon.com/amplify/) → **Create new app** → **Host web app**.
-2. Connect your Git provider and select **`IslaIntel/1ball1game-website`**.
-3. Amplify should auto-detect **Next.js - SSR**. Confirm the build spec uses `amplify.yml`.
+### Environment variables
 
-### 2. Environment variables
-
-In Amplify → **App settings** → **Environment variables**, add:
+Set these in Vercel → **Project Settings** → **Environment Variables**:
 
 | Variable | Required | Description |
 | -------- | -------- | ----------- |
+| `STRIPE_SECRET_KEY` | Yes | Stripe secret key for registration checkout |
+| `STRIPE_WEBHOOK_SECRET` | Yes | Signing secret for `/api/stripe/webhook` |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Yes | Stripe publishable key for the payment form |
+| `REGISTER_WEBHOOK_URL` | Yes | Where completed registrations are sent |
+| `CONTACT_WEBHOOK_URL` | Yes | Where contact form submissions are sent |
+| `RESEND_API_KEY` | No | Sends registration confirmation emails through Resend. If unset, notifications go through `REGISTER_WEBHOOK_URL` only. |
+| `REGISTER_EMAIL_FROM` | No | Sender address for those emails |
 | `NEXT_PUBLIC_REGISTRATION_OPEN` | No | `true` opens the live form and Register Now links. `false` shows the closed state. Defaults to open. |
 | `NEXT_PUBLIC_POSTHOG_KEY` | No | PostHog project API key |
 | `NEXT_PUBLIC_POSTHOG_HOST` | No | Defaults to `https://us.i.posthog.com` |
 
-These are written to `.env.production` during the build via `amplify.yml`.
-
-### 3. Deploy
-
-Push to `main` — Amplify builds with `npm ci` and `npm run build`, then deploys the `.next` output.
+`amplify.yml` is left over from the earlier AWS Amplify setup and isn't used by Vercel.
 
 ### Local build check
 
