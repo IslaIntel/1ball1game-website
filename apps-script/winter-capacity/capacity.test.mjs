@@ -33,8 +33,22 @@ function load() {
     getLastRow: () => grid.length,
     setFrozenRows: () => {},
   };
+  // Derek's registration tab. By default every registration is still on it;
+  // a test can delete one with removeRegistration().
+  const removedRegistrations = new Set();
+  const registrationSheet = {
+    getDataRange: () => ({
+      getValues: () => {
+        const ids = [...new Set(grid.slice(1).map((r) => r[0]))].filter(
+          (id) => !removedRegistrations.has(id),
+        );
+        return [["season", "registration_id"], ...ids.map((id) => ["Winter 2026", id])];
+      },
+    }),
+  };
   const spreadsheet = {
-    getSheetByName: () => (grid.length ? sheet : null),
+    getSheetByName: (name) =>
+      name === "1B1G_Fall_2026_Registration_Import" ? registrationSheet : grid.length ? sheet : null,
     insertSheet: () => sheet,
   };
 
@@ -92,7 +106,14 @@ function load() {
   const call = (action, body = {}, now = new Date("2026-11-10T15:00:00Z")) =>
     context.handleRequest_({ secret: SECRET, action, ...body }, now);
 
-  return { call, grid, mail, context, locks: () => lockAcquisitions };
+  return {
+    call,
+    grid,
+    mail,
+    context,
+    locks: () => lockAcquisitions,
+    removeRegistration: (id) => removedRegistrations.add(id),
+  };
 }
 
 function child(n, sessionId, reg = "reg_a") {
@@ -281,4 +302,53 @@ test("unknown session is rejected before anything is written", () => {
   const r = call("reserve", { registrationId: "ru", children: [child(1, "nope", "ru")] });
   assert.equal(r.ok, false);
   assert.equal(grid.length, 0);
+});
+
+test("deleting a registration on the registration tab frees its places", () => {
+  const { call, removeRegistration } = load();
+  const t0 = new Date("2026-11-10T15:00:00Z");
+  fill(call, MON_GIRLS, 12, t0);
+  const later = new Date("2026-11-10T16:00:00Z");
+  assert.equal(call("availability", {}, later).sessions.find((x) => x.id === MON_GIRLS).remaining, 0);
+
+  removeRegistration(`reg_fill_${MON_GIRLS}_0`);
+  removeRegistration(`reg_fill_${MON_GIRLS}_1`);
+  const s = call("availability", {}, later).sessions.find((x) => x.id === MON_GIRLS);
+  assert.equal(s.occupied, 10);
+  assert.equal(s.label, "2 places left");
+
+  const r = call("reserve", { registrationId: "rnew", unitPriceCents: PRICE, children: [child(1, MON_GIRLS, "rnew")] }, later);
+  assert.equal(r.children[0].enrollmentStatus, "checkout_hold");
+});
+
+test("a just-confirmed child counts before Waves writes the registration row", () => {
+  const { call, removeRegistration } = load();
+  const t0 = new Date("2026-11-10T15:00:00Z");
+  call("reserve", { registrationId: "rg", unitPriceCents: PRICE, children: [child(1, MON_GIRLS, "rg")] }, t0);
+  call("confirm", { registrationId: "rg", amountPaidCentsPerChild: PRICE }, t0);
+  removeRegistration("rg"); // row not written yet
+  const soon = new Date("2026-11-10T15:05:00Z");
+  assert.equal(call("availability", {}, soon).sessions.find((x) => x.id === MON_GIRLS).occupied, 1);
+  const muchLater = new Date("2026-11-10T15:30:00Z");
+  assert.equal(call("availability", {}, muchLater).sessions.find((x) => x.id === MON_GIRLS).occupied, 0);
+});
+
+test("re-registering a child whose registration was deleted starts fresh and is charged", () => {
+  const { call, removeRegistration } = load();
+  const t0 = new Date("2026-11-10T15:00:00Z");
+  call("reserve", { registrationId: "rd", unitPriceCents: PRICE, children: [child(1, MON_GIRLS, "rd")] }, t0);
+  call("confirm", { registrationId: "rd", paymentStatus: "scholarship", amountPaidCentsPerChild: 0 }, t0);
+  removeRegistration("rd");
+  const later = new Date("2026-11-10T17:00:00Z");
+  const r = call("reserve", { registrationId: "rd", unitPriceCents: PRICE, children: [child(1, MON_GIRLS, "rd")] }, later);
+  assert.equal(r.children[0].enrollmentStatus, "checkout_hold");
+  assert.equal(r.children[0].amountDueCents, PRICE);
+});
+
+test("holds still count even though they have no registration row", () => {
+  const { call, removeRegistration } = load();
+  const t0 = new Date("2026-11-10T15:00:00Z");
+  call("reserve", { registrationId: "rh", unitPriceCents: PRICE, children: [child(1, MON_GIRLS, "rh")] }, t0);
+  removeRegistration("rh");
+  assert.equal(call("availability", {}, new Date("2026-11-10T15:20:00Z")).sessions.find((x) => x.id === MON_GIRLS).occupied, 1);
 });

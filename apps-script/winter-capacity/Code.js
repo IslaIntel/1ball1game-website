@@ -22,6 +22,10 @@
 
 var SPREADSHEET_ID = '1IYFeKojySg6eN9eOl5xikUeqod7CnO3eyyQX97r9TmM';
 var TAB_NAME = 'Winter_2026_Enrollment';
+/** Derek's registration tab. A paid or waitlisted child only counts while their registration is still here. */
+var REGISTRATION_TAB_NAME = '1B1G_Fall_2026_Registration_Import';
+/** A just-confirmed child counts even before Waves has written their registration row. */
+var NEW_ROW_GRACE_MINUTES = 15;
 var SEASON = 'Winter 2026';
 var PROGRAM = 'winter-streetball';
 var CAPACITY = 12;
@@ -80,6 +84,7 @@ function doPost(e) {
 }
 
 function doGet(e) {
+  beginRequest_(new Date());
   var params = (e && e.parameter) || {};
   if (params.key && params.key === prop_('STAFF_KEY')) {
     return HtmlService.createHtmlOutput(renderStaffPage_(params.key, params.message || ''))
@@ -90,6 +95,7 @@ function doGet(e) {
 
 /** Called from the staff page buttons. */
 function staffOffer(key, sessionId) {
+  beginRequest_(new Date());
   if (!key || key !== prop_('STAFF_KEY')) throw new Error('Not allowed.');
   var result = withLock_(function () {
     return offer_({ sessionId: sessionId }, new Date());
@@ -99,6 +105,7 @@ function staffOffer(key, sessionId) {
 }
 
 function handleRequest_(request, now) {
+  beginRequest_(now);
   if (!request.secret || request.secret !== prop_('SHARED_SECRET')) {
     return { ok: false, error: 'Not allowed.' };
   }
@@ -158,6 +165,15 @@ function reserve_(request, now) {
 
   children.forEach(function (child) {
     var existing = findActiveRow_(rows, child.playerId);
+    if (existing && !isLive_(existing)) {
+      // Staff removed this registration; treat the child as new.
+      updateRow_(existing, {
+        enrollment_status: 'cancelled',
+        reservation_expires_at: '',
+        notes: appendNote_(existing.notes, 'Registration removed from the registration tab'),
+      }, now);
+      existing = null;
+    }
 
     if (existing && existing.session_id === child.sessionId) {
       var status = existing.enrollment_status;
@@ -389,15 +405,59 @@ function offerLookup_(rows, token, now) {
 // Helpers
 // ---------------------------------------------------------------------------
 
+/**
+ * Whether a row still belongs to a live registration. Checkout holds and
+ * offers always do (they have no registration row yet). Confirmed and
+ * waitlisted children stop counting once staff delete the registration
+ * from the registration tab, so places free up without editing this tab.
+ */
+function isLive_(row) {
+  var status = row.enrollment_status;
+  if (status === 'checkout_hold' || status === 'offer_reserved') return true;
+  if (status !== 'confirmed' && status !== 'waitlisted') return false;
+  var ids = registrationIds_();
+  if (ids === null || ids[row.registration_id]) return true;
+  var touched = new Date(row.updated_at || row.created_at).getTime();
+  return NOW_MS_ - touched < NEW_ROW_GRACE_MINUTES * 60000;
+}
+
+var REGISTRATION_IDS_CACHE_;
+var NOW_MS_ = Date.now();
+
+/** Start each request with a fresh view of the registration tab. */
+function beginRequest_(now) {
+  REGISTRATION_IDS_CACHE_ = undefined;
+  NOW_MS_ = now.getTime();
+}
+
+/** registration_id values on the registration tab, or null if that column can't be found. */
+function registrationIds_() {
+  if (REGISTRATION_IDS_CACHE_ !== undefined) return REGISTRATION_IDS_CACHE_;
+  REGISTRATION_IDS_CACHE_ = null;
+  var sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(REGISTRATION_TAB_NAME);
+  if (!sheet) return null;
+  var values = sheet.getDataRange().getValues();
+  var col = values.length ? values[0].indexOf('registration_id') : -1;
+  if (col < 0) return null;
+  var ids = {};
+  for (var i = 1; i < values.length; i++) {
+    if (values[i][col]) ids[String(values[i][col])] = true;
+  }
+  REGISTRATION_IDS_CACHE_ = ids;
+  return ids;
+}
+
 function occupied_(rows, sessionId) {
   return rows.filter(function (row) {
-    return row.session_id === sessionId && OCCUPYING[row.enrollment_status];
+    return row.session_id === sessionId && OCCUPYING[row.enrollment_status] && isLive_(row);
   }).length;
 }
 
 function waitlistRows_(rows, sessionId) {
   return rows
-    .filter(function (row) { return row.session_id === sessionId && row.enrollment_status === 'waitlisted'; })
+    .filter(function (row) {
+      return row.session_id === sessionId && row.enrollment_status === 'waitlisted' && isLive_(row);
+    })
     .sort(function (a, b) { return new Date(a.waitlisted_at).getTime() - new Date(b.waitlisted_at).getTime(); });
 }
 
