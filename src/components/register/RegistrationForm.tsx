@@ -1329,7 +1329,7 @@ function SessionField({
       {selected ? (
         <p
           className={`mt-1.5 text-sm font-medium ${
-            selected.available ? "text-ink/70" : "text-magenta-deep"
+            selected.available ? "font-semibold text-magenta" : "text-magenta-deep"
           }`}
         >
           {selected.available

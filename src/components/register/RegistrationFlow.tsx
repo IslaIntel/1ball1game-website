@@ -128,7 +128,7 @@ function SeasonPicker({
                           <span
                             className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
                               status.available
-                                ? "bg-ink/5 text-ink/70"
+                                ? "bg-magenta text-cloud shadow-sm"
                                 : "bg-magenta/10 text-magenta-deep"
                             }`}
                           >
