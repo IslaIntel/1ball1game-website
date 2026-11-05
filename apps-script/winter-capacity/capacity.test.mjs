@@ -42,13 +42,30 @@ function load() {
         const ids = [...new Set(grid.slice(1).map((r) => r[0]))].filter(
           (id) => !removedRegistrations.has(id),
         );
-        return [["season", "registration_id"], ...ids.map((id) => ["Winter 2026", id])];
+        // app_record_id is the manager's own ID; tests use "app_<registration_id>".
+        return [
+          ["season", "app_record_id", "registration_id"],
+          ...ids.map((id) => ["Winter 2026", `app_${id}`, id]),
+        ];
       },
+    }),
+  };
+  // Derek's Team Assignments tab: [team_id, player_key, status].
+  const roster = [];
+  const rosterSheet = {
+    getDataRange: () => ({
+      getValues: () => [["team_id", "player_key", "status"], ...roster.map((r) => r.slice())],
     }),
   };
   const spreadsheet = {
     getSheetByName: (name) =>
-      name === "1B1G_Fall_2026_Registration_Import" ? registrationSheet : grid.length ? sheet : null,
+      name === "1B1G_Fall_2026_Registration_Import"
+        ? registrationSheet
+        : name === "Team Assignments"
+          ? rosterSheet
+          : grid.length
+            ? sheet
+            : null,
     insertSheet: () => sheet,
   };
 
@@ -113,6 +130,11 @@ function load() {
     context,
     locks: () => lockAcquisitions,
     removeRegistration: (id) => removedRegistrations.add(id),
+    /** Put a child on Derek's roster, e.g. assign(MON_GIRLS, "reg_x:1"). */
+    assign: (sessionId, playerId, status = "active") => {
+      const [reg, n] = playerId.split(":");
+      roster.push([sessionId, `app_${reg}:${n}`, status]);
+    },
   };
 }
 
@@ -351,4 +373,61 @@ test("holds still count even though they have no registration row", () => {
   call("reserve", { registrationId: "rh", unitPriceCents: PRICE, children: [child(1, MON_GIRLS, "rh")] }, t0);
   removeRegistration("rh");
   assert.equal(call("availability", {}, new Date("2026-11-10T15:20:00Z")).sessions.find((x) => x.id === MON_GIRLS).occupied, 1);
+});
+
+const WED_GIRLS = "winter-2026-wed-1700-4g";
+
+test("Derek's case: a child moved from the waitlist onto the roster takes a place", () => {
+  const { call, assign } = load();
+  const t0 = new Date("2026-11-10T15:00:00Z");
+  // Six confirmed children, all on the roster.
+  const six = { registrationId: "r6", unitPriceCents: PRICE, children: [1, 2, 3, 4, 5, 6].map((n) => child(n, WED_GIRLS, "r6")) };
+  call("reserve", six, t0);
+  call("confirm", { registrationId: "r6", paymentStatus: "scholarship", amountPaidCentsPerChild: 0 }, t0);
+  [1, 2, 3, 4, 5, 6].forEach((n) => assign(WED_GIRLS, `r6:${n}`));
+  // Aubrey joined the waitlist earlier, then Derek put her on the team in his manager.
+  call("reserve", { registrationId: "ra", unitPriceCents: PRICE, children: [child(1, WED_GIRLS, "ra")] }, t0);
+  const later = new Date("2026-11-10T16:00:00Z");
+  assign(WED_GIRLS, "ra:1");
+
+  const s = call("availability", {}, later).sessions.find((x) => x.id === WED_GIRLS);
+  assert.equal(s.occupied, 7, "roster of 7 is respected");
+  assert.equal(s.remaining, 5);
+
+  const family = { registrationId: "rnew", unitPriceCents: PRICE, children: [1, 2, 3, 4, 5, 6].map((n) => child(n, WED_GIRLS, "rnew")) };
+  const r = call("reserve", family, later);
+  const statuses = r.children.map((c) => c.enrollmentStatus);
+  assert.equal(statuses.filter((x) => x === "checkout_hold").length, 5);
+  assert.equal(statuses.filter((x) => x === "waitlisted").length, 1);
+});
+
+test("a waitlisted child Derek puts on the roster leaves the waitlist", () => {
+  const { call, assign } = load();
+  const t0 = new Date("2026-11-10T15:00:00Z");
+  fill(call, MON_GIRLS, 12, t0);
+  call("reserve", { registrationId: "rw", unitPriceCents: PRICE, children: [child(1, MON_GIRLS, "rw")] }, t0);
+  assert.equal(call("availability", {}, t0).sessions.find((x) => x.id === MON_GIRLS).waitlistCount, 1);
+  assign(MON_GIRLS, "rw:1");
+  const s = call("availability", {}, t0).sessions.find((x) => x.id === MON_GIRLS);
+  assert.equal(s.waitlistCount, 0);
+  assert.equal(s.occupied, 13, "over the limit because Derek chose to add a 13th");
+});
+
+test("removing a child from the roster frees the place", () => {
+  const { call, assign } = load();
+  const t0 = new Date("2026-11-10T15:00:00Z");
+  fill(call, MON_GIRLS, 12, t0);
+  for (let i = 1; i < 12; i++) assign(MON_GIRLS, `reg_fill_${MON_GIRLS}_${i}:1`);
+  assign(MON_GIRLS, `reg_fill_${MON_GIRLS}_0:1`, "removed"); // Derek removed child 0
+  const s = call("availability", {}, new Date("2026-11-10T16:00:00Z")).sessions.find((x) => x.id === MON_GIRLS);
+  assert.equal(s.occupied, 11);
+  assert.equal(s.label, "1 place left");
+});
+
+test("a new paid child counts before the manager syncs them onto the roster", () => {
+  const { call } = load();
+  const t0 = new Date("2026-11-10T15:00:00Z");
+  call("reserve", { registrationId: "rs", unitPriceCents: PRICE, children: [child(1, MON_GIRLS, "rs")] }, t0);
+  call("confirm", { registrationId: "rs", amountPaidCentsPerChild: PRICE }, t0);
+  assert.equal(call("availability", {}, new Date("2026-11-10T16:00:00Z")).sessions.find((x) => x.id === MON_GIRLS).occupied, 1);
 });

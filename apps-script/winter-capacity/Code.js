@@ -26,6 +26,8 @@ var TAB_NAME = 'Winter_2026_Enrollment';
 var REGISTRATION_TAB_NAME = '1B1G_Fall_2026_Registration_Import';
 /** A just-confirmed child counts even before Waves has written their registration row. */
 var NEW_ROW_GRACE_MINUTES = 15;
+/** Derek's roster tab (registration manager). Winter team_id values are the session IDs. */
+var ROSTER_TAB_NAME = 'Team Assignments';
 var SEASON = 'Winter 2026';
 var PROGRAM = 'winter-streetball';
 var CAPACITY = 12;
@@ -424,9 +426,14 @@ function isLive_(row) {
 var REGISTRATION_IDS_CACHE_;
 var NOW_MS_ = Date.now();
 
-/** Start each request with a fresh view of the registration tab. */
+var APP_TO_REG_CACHE_;
+var ROSTER_CACHE_;
+
+/** Start each request with a fresh view of the registration and roster tabs. */
 function beginRequest_(now) {
   REGISTRATION_IDS_CACHE_ = undefined;
+  APP_TO_REG_CACHE_ = undefined;
+  ROSTER_CACHE_ = undefined;
   NOW_MS_ = now.getTime();
 }
 
@@ -434,29 +441,106 @@ function beginRequest_(now) {
 function registrationIds_() {
   if (REGISTRATION_IDS_CACHE_ !== undefined) return REGISTRATION_IDS_CACHE_;
   REGISTRATION_IDS_CACHE_ = null;
+  APP_TO_REG_CACHE_ = {};
   var sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(REGISTRATION_TAB_NAME);
   if (!sheet) return null;
   var values = sheet.getDataRange().getValues();
   var col = values.length ? values[0].indexOf('registration_id') : -1;
+  var appCol = values.length ? values[0].indexOf('app_record_id') : -1;
   if (col < 0) return null;
   var ids = {};
   for (var i = 1; i < values.length; i++) {
-    if (values[i][col]) ids[String(values[i][col])] = true;
+    var regId = values[i][col] ? String(values[i][col]) : '';
+    if (!regId) continue;
+    ids[regId] = true;
+    if (appCol >= 0 && values[i][appCol]) APP_TO_REG_CACHE_[String(values[i][appCol])] = regId;
   }
   REGISTRATION_IDS_CACHE_ = ids;
   return ids;
 }
 
+/**
+ * Derek's Winter rosters, keyed the way this script keys children.
+ * The roster uses "<app_record_id>:<n>"; the registration tab maps
+ * app_record_id to registration_id, so that becomes "<registration_id>:<n>".
+ *   active[playerId]  = session the child is on now
+ *   removed[playerId] = true when every roster row for the child is removed
+ *   bySession[id]     = player IDs on that session's roster
+ */
+function roster_() {
+  if (ROSTER_CACHE_ !== undefined) return ROSTER_CACHE_;
+  registrationIds_();
+  var roster = { active: {}, removed: {}, bySession: {} };
+  SESSIONS.forEach(function (session) { roster.bySession[session.id] = {}; });
+  ROSTER_CACHE_ = roster;
+  var sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(ROSTER_TAB_NAME);
+  if (!sheet) return roster;
+  var values = sheet.getDataRange().getValues();
+  if (!values.length) return roster;
+  var h = values[0];
+  var cTeam = h.indexOf('team_id');
+  var cKey = h.indexOf('player_key');
+  var cStatus = h.indexOf('status');
+  if (cTeam < 0 || cKey < 0 || cStatus < 0) return roster;
+  var seen = {};
+  for (var i = 1; i < values.length; i++) {
+    var teamId = String(values[i][cTeam] || '');
+    if (!roster.bySession[teamId]) continue;
+    var id = rosterPlayerId_(String(values[i][cKey] || ''));
+    if (!id) continue;
+    seen[id] = true;
+    if (String(values[i][cStatus]) === 'active') {
+      roster.active[id] = teamId;
+      roster.bySession[teamId][id] = true;
+    }
+  }
+  Object.keys(seen).forEach(function (id) {
+    if (!roster.active[id]) roster.removed[id] = true;
+  });
+  return roster;
+}
+
+function rosterPlayerId_(playerKey) {
+  var parts = playerKey.split(':');
+  if (parts.length < 2) return playerKey;
+  var n = parts.pop();
+  var appId = parts.join(':');
+  var regId = (APP_TO_REG_CACHE_ && APP_TO_REG_CACHE_[appId]) || appId;
+  return regId + ':' + n;
+}
+
+/**
+ * Children taking a place in a session. Derek's roster is the authority:
+ * everyone on the session's active roster counts, and a child he removed
+ * from the roster does not. Children his manager hasn't synced yet (no
+ * roster row at all), plus checkout holds and offers, count from this tab.
+ */
 function occupied_(rows, sessionId) {
-  return rows.filter(function (row) {
-    return row.session_id === sessionId && OCCUPYING[row.enrollment_status] && isLive_(row);
-  }).length;
+  var roster = roster_();
+  var taken = {};
+  Object.keys(roster.bySession[sessionId] || {}).forEach(function (id) { taken[id] = true; });
+  rows.forEach(function (row) {
+    if (row.session_id !== sessionId || !OCCUPYING[row.enrollment_status]) return;
+    var id = row.player_id;
+    var inFlight = row.enrollment_status === 'checkout_hold' || row.enrollment_status === 'offer_reserved';
+    if (roster.active[id]) return; // counted under the session the roster puts them in
+    if (roster.removed[id] && !inFlight) return;
+    if (isLive_(row)) taken[id] = true;
+  });
+  return Object.keys(taken).length;
 }
 
 function waitlistRows_(rows, sessionId) {
   return rows
     .filter(function (row) {
-      return row.session_id === sessionId && row.enrollment_status === 'waitlisted' && isLive_(row);
+      var roster = roster_();
+      return (
+        row.session_id === sessionId &&
+        row.enrollment_status === 'waitlisted' &&
+        !roster.active[row.player_id] && // already moved onto a team
+        !roster.removed[row.player_id] &&
+        isLive_(row)
+      );
     })
     .sort(function (a, b) { return new Date(a.waitlisted_at).getTime() - new Date(b.waitlisted_at).getTime(); });
 }
