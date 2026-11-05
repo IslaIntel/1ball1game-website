@@ -4,7 +4,9 @@ Six Winter Streetball groups, 12 children each for the whole program. Child 13 a
 
 ## Where it stands (Nov 4, 2026)
 
-The cap is on for this branch’s Vercel preview only. Production, including https://1ball1game.org, is unchanged.
+**Nov 5, 2026: the cap is live on https://1ball1game.org.** `main` includes this branch, and `CAPACITY_SCRIPT_URL`, `CAPACITY_SCRIPT_SECRET`, `CRON_SECRET` and `NEXT_PUBLIC_WINTER_CAP_ENABLED=true` now apply to Production and all previews. Winter parents pick a session first (it sets grade and gender) and see only “Spots available” or “Waitlist available”.
+
+Open after go-live: one test row (“Test1 Test2”, scholarship, a Monday session) is still in `Winter_2026_Enrollment` and counts toward that group until deleted. The card payment, hold expiry and offer paths have not been run in Stripe test mode. Derek still needs the staff page link.
 
 Done:
 
