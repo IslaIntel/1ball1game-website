@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import {
   MAX_PLAYERS,
   SPRING_WAIVERS,
+  withSpringOmittedPlayerFields,
   type RegistrationPayload,
 } from "@/lib/registration";
 import { validateRegistrationPayload } from "@/lib/submit-registration";
@@ -53,7 +54,7 @@ export async function POST(request: Request) {
 
   const payload: RegistrationPayload = {
     parent: body.parent,
-    players: body.players,
+    players: body.players.map(withSpringOmittedPlayerFields),
     volunteer: body.volunteer ?? { role: "", name: "", shirtSize: "" },
     waivers: body.waivers ?? {
       programAdministration: false,

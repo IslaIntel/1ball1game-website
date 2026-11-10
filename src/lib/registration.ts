@@ -200,6 +200,23 @@ export const emptyPlayer = (): PlayerInfo => ({
   medicalDetails: "",
 });
 
+/**
+ * Spring no longer asks for jersey size, a buddy, or medical and emergency
+ * details. These values keep the existing sheet columns filled.
+ */
+export const SPRING_OMITTED_PLAYER_VALUES = {
+  jerseySize: "Not collected",
+  buddyRequest: "",
+  emergencyContactName: "Not collected",
+  emergencyPhone: "0000000000",
+  hasMedicalConditions: "no" as const,
+  medicalDetails: "",
+};
+
+export function withSpringOmittedPlayerFields(player: PlayerInfo): PlayerInfo {
+  return { ...player, ...SPRING_OMITTED_PLAYER_VALUES };
+}
+
 export const emptyVolunteer = (): VolunteerInfo => ({
   role: "",
   name: "",
@@ -535,8 +552,6 @@ export function validateSpringRegistration(data: RegistrationPayload): FieldErro
     if (!player.gender) errors[`players.${i}.gender`] = "Choose a gender option.";
     if (!player.grade) errors[`players.${i}.grade`] = "Choose a grade.";
     if (!player.school) errors[`players.${i}.school`] = "Choose a school.";
-    if (!player.jerseySize)
-      errors[`players.${i}.jerseySize`] = "Choose a jersey size.";
   });
 
   return errors;

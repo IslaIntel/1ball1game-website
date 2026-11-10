@@ -31,6 +31,7 @@ import {
   type Waivers,
   validateStep,
   WAIVERS,
+  withSpringOmittedPlayerFields,
 } from "@/lib/registration";
 import { RegistrationSuccess } from "@/components/register/RegistrationSuccess";
 import {
@@ -102,9 +103,12 @@ export function RegistrationForm({
 }) {
   const grades = requiresPayment ? WINTER_GRADES : SPRING_GRADES;
   const waiverDocs = requiresPayment ? WAIVERS : SPRING_WAIVERS;
+  const activeSteps = requiresPayment ? [0, 1, 2, 3, 4] : [0, 1, 3, 4];
+  const blankPlayer = () =>
+    requiresPayment ? emptyPlayer() : withSpringOmittedPlayerFields(emptyPlayer());
   const [step, setStep] = useState(0);
   const [parent, setParent] = useState(emptyParent);
-  const [players, setPlayers] = useState<PlayerInfo[]>([emptyPlayer()]);
+  const [players, setPlayers] = useState<PlayerInfo[]>([blankPlayer()]);
   const volunteer = emptyVolunteer();
   const [waivers, setWaivers] = useState(emptyWaivers);
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -210,7 +214,7 @@ export function RegistrationForm({
 
   const payload: RegistrationPayload = {
     parent,
-    players,
+    players: requiresPayment ? players : players.map(withSpringOmittedPlayerFields),
     volunteer,
     waivers,
     parentSignature,
@@ -235,13 +239,15 @@ export function RegistrationForm({
     const nextErrors = validateStep(step, payload, waiverDocs);
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) return;
-    setStep((s) => Math.min(s + 1, STEP_LABELS.length - 1));
+    const position = activeSteps.indexOf(step);
+    setStep(activeSteps[Math.min(position + 1, activeSteps.length - 1)] ?? step);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const goBack = () => {
     setErrors({});
-    setStep((s) => Math.max(s - 1, 0));
+    const position = activeSteps.indexOf(step);
+    setStep(activeSteps[Math.max(position - 1, 0)] ?? 0);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -380,9 +386,10 @@ export function RegistrationForm({
       <div className="lg:col-span-7">
         <nav aria-label="Registration progress" className="mb-8">
           <ol className="flex flex-wrap gap-2">
-            {STEP_LABELS.map((label, i) => {
-              const active = i === step;
-              const done = i < step;
+            {activeSteps.map((stepIndex, visibleIndex) => {
+              const label = STEP_LABELS[stepIndex];
+              const active = stepIndex === step;
+              const done = stepIndex < step;
               return (
                 <li
                   key={label}
@@ -394,7 +401,7 @@ export function RegistrationForm({
                         : "bg-ink/5 text-ink/50"
                   }`}
                 >
-                  <span className="mr-1.5 opacity-70">{i + 1}</span>
+                  <span className="mr-1.5 opacity-70">{visibleIndex + 1}</span>
                   {label}
                 </li>
               );
@@ -404,7 +411,7 @@ export function RegistrationForm({
 
         <div className="rounded-[2rem] border border-ink/10 bg-cloud p-6 shadow-[0_30px_60px_-40px_rgba(10,17,56,0.35)] sm:p-8">
           <p className="eyebrow text-ink/45">
-            Step {step + 1} of {STEP_LABELS.length}
+            Step {activeSteps.indexOf(step) + 1} of {activeSteps.length}
           </p>
           <h2 className="mt-3 font-display text-2xl font-semibold text-ink sm:text-3xl">
             {(requiresPayment ? STEP_TITLES : SPRING_STEP_TITLES)[step]}
@@ -427,11 +434,12 @@ export function RegistrationForm({
                 grades={grades}
                 season={season}
                 capOn={capOn}
+                collectJerseyAndBuddy={requiresPayment}
                 availability={availability}
                 onChange={updatePlayer}
                 onAdd={() =>
                   setPlayers((p) =>
-                    p.length >= MAX_PLAYERS ? p : [...p, emptyPlayer()],
+                    p.length >= MAX_PLAYERS ? p : [...p, blankPlayer()],
                   )
                 }
                 onRemove={(i) =>
@@ -465,6 +473,7 @@ export function RegistrationForm({
                   players={players}
                   waiverDocs={waiverDocs}
                   waivers={waivers}
+                  showPlayerExtras={requiresPayment}
                   parentSignature={parentSignature}
                   signatureError={errors.parentSignature}
                   onSignatureChange={setParentSignature}
@@ -515,7 +524,7 @@ export function RegistrationForm({
                 Return home
               </Link>
             )}
-            {step < STEP_LABELS.length - 1 ? (
+            {activeSteps.indexOf(step) < activeSteps.length - 1 ? (
               <button
                 type="button"
                 onClick={goNext}
@@ -753,6 +762,7 @@ function PlayersStep({
   grades,
   season,
   capOn,
+  collectJerseyAndBuddy,
   availability,
   errors,
   onChange,
@@ -764,6 +774,7 @@ function PlayersStep({
   grades: readonly string[];
   season: string;
   capOn: boolean;
+  collectJerseyAndBuddy: boolean;
   availability: Record<string, PublicSessionAvailability>;
   errors: FieldErrors;
   onChange: <K extends keyof PlayerInfo>(
@@ -916,38 +927,42 @@ function PlayersStep({
                   ))}
                 </select>
               </Field>
-              <Field
-                label="Jersey size"
-                id={`player-${i}-jersey`}
-                required
-                error={errors[`players.${i}.jerseySize`]}
-              >
-                <select
-                  id={`player-${i}-jersey`}
-                  className={fieldClass}
-                  value={player.jerseySize}
-                  onChange={(e) => onChange(i, "jerseySize", e.target.value)}
-                >
-                  <option value="">Select an option</option>
-                  {JERSEY_SIZES.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field
-                label="Buddy request"
-                id={`player-${i}-buddy`}
-                hint="Optional. Buddy requests are not guaranteed."
-              >
-                <input
-                  id={`player-${i}-buddy`}
-                  className={fieldClass}
-                  value={player.buddyRequest}
-                  onChange={(e) => onChange(i, "buddyRequest", e.target.value)}
-                />
-              </Field>
+              {collectJerseyAndBuddy ? (
+                <>
+                  <Field
+                    label="Jersey size"
+                    id={`player-${i}-jersey`}
+                    required
+                    error={errors[`players.${i}.jerseySize`]}
+                  >
+                    <select
+                      id={`player-${i}-jersey`}
+                      className={fieldClass}
+                      value={player.jerseySize}
+                      onChange={(e) => onChange(i, "jerseySize", e.target.value)}
+                    >
+                      <option value="">Select an option</option>
+                      {JERSEY_SIZES.map((s) => (
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field
+                    label="Buddy request"
+                    id={`player-${i}-buddy`}
+                    hint="Optional. Buddy requests are not guaranteed."
+                  >
+                    <input
+                      id={`player-${i}-buddy`}
+                      className={fieldClass}
+                      value={player.buddyRequest}
+                      onChange={(e) => onChange(i, "buddyRequest", e.target.value)}
+                    />
+                  </Field>
+                </>
+              ) : null}
             </div>
           </div>
         );
@@ -1158,6 +1173,7 @@ function ReviewStep({
   players,
   waiverDocs,
   waivers,
+  showPlayerExtras,
   parentSignature,
   signatureError,
   onSignatureChange,
@@ -1166,6 +1182,7 @@ function ReviewStep({
   players: PlayerInfo[];
   waiverDocs: readonly WaiverDoc[];
   waivers: Waivers;
+  showPlayerExtras: boolean;
   parentSignature: string;
   signatureError?: string;
   onSignatureChange: (value: string) => void;
@@ -1219,20 +1236,25 @@ function ReviewStep({
               </p>
               <p className="mt-1">
                 {player.dateOfBirth} · {player.gender} · {player.grade} ·{" "}
-                {player.school} · {player.jerseySize}
+                {player.school}
+                {showPlayerExtras ? ` · ${player.jerseySize}` : ""}
               </p>
-              {player.buddyRequest.trim() ? (
+              {showPlayerExtras && player.buddyRequest.trim() ? (
                 <p className="mt-1">Buddy request: {player.buddyRequest}</p>
               ) : null}
-              <p className="mt-1">
-                Emergency: {player.emergencyContactName} · {player.emergencyPhone}
-              </p>
-              <p className="mt-1">
-                Medical:{" "}
-                {player.hasMedicalConditions === "yes"
-                  ? player.medicalDetails.trim() || "Yes (no details provided)"
-                  : "None reported"}
-              </p>
+              {showPlayerExtras ? (
+                <>
+                  <p className="mt-1">
+                    Emergency: {player.emergencyContactName} · {player.emergencyPhone}
+                  </p>
+                  <p className="mt-1">
+                    Medical:{" "}
+                    {player.hasMedicalConditions === "yes"
+                      ? player.medicalDetails.trim() || "Yes (no details provided)"
+                      : "None reported"}
+                  </p>
+                </>
+              ) : null}
             </li>
           ))}
         </ul>
