@@ -33,6 +33,9 @@ async function callScript<T>(action: string, body: Record<string, unknown> = {})
     body: JSON.stringify({ ...body, action, secret: SCRIPT_SECRET }),
     cache: "no-store",
     redirect: "follow",
+    // The sheet lock can wait 20s. Stop here before a stuck Google request
+    // leaves the payment form on "Connecting…" until the platform kills it.
+    signal: AbortSignal.timeout(35_000),
   });
   const text = await response.text();
   let data: { ok?: boolean; error?: string } & T;

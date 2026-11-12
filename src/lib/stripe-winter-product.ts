@@ -10,7 +10,19 @@ export type WinterStreetballPrice = {
   productName: string;
 };
 
+const PRICE_CACHE_MS = 10 * 60 * 1000;
+let cachedPrice: { value: WinterStreetballPrice; expiresAt: number } | null = null;
+
 export async function getWinterStreetballPrice(
+  stripe: Stripe,
+): Promise<WinterStreetballPrice> {
+  if (cachedPrice && cachedPrice.expiresAt > Date.now()) return cachedPrice.value;
+  const value = await loadWinterStreetballPrice(stripe);
+  cachedPrice = { value, expiresAt: Date.now() + PRICE_CACHE_MS };
+  return value;
+}
+
+async function loadWinterStreetballPrice(
   stripe: Stripe,
 ): Promise<WinterStreetballPrice> {
   const product = await stripe.products.retrieve(WINTER_STREETBALL_PRODUCT_ID);

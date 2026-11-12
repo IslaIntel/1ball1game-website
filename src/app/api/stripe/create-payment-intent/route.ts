@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { MAX_PLAYERS, type RegistrationPayload } from "@/lib/registration";
 import { registrationClosedResponse } from "@/lib/registration-guard";
 import { registrationFingerprint } from "@/lib/registration-idempotency";
@@ -86,6 +86,10 @@ export async function POST(request: Request) {
   const fingerprint = registrationFingerprint(payload);
   const clientIp = getClientIp(request);
 
+  // Price lookup does not depend on the sheet, so start it before the capacity read.
+  const pricePromise = getWinterStreetballPrice(stripe);
+  void pricePromise.catch(() => undefined);
+
   // With the session cap on, charge only the children who hold a place.
   let capacity: { registrationId: string; billableIds: string[] } | null = null;
   if (winterCapActive()) {
@@ -112,7 +116,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const price = await getWinterStreetballPrice(stripe);
+    const price = await pricePromise;
     const chargedCount = capacity ? capacity.billableIds.length : playerCount;
     const amount = price.unitAmount * chargedCount;
     const paymentIntent = await createOrReusePaymentIntent(stripe, {
@@ -135,21 +139,37 @@ export async function POST(request: Request) {
         : {}),
     });
 
-    if (capacity) {
-      await attachPayment({
-        playerIds: capacity.billableIds,
-        paymentIntentId: paymentIntent.id,
-      });
+    if (!paymentIntent.client_secret) {
+      return NextResponse.json(
+        { error: "Unable to start payment. Please try again." },
+        { status: 502 },
+      );
     }
 
-    await syncPaymentIntentDetails(
-      stripe,
-      paymentIntent.id,
-      payload,
-      clientIp,
-      fingerprint,
-      price,
-    );
+    // Recording the payment on the sheet and copying registration details onto
+    // the intent are not needed to show the card form. Do them after the
+    // response so parents are not stuck on "Connecting to secure payment…".
+    const paymentIntentId = paymentIntent.id;
+    after(async () => {
+      try {
+        if (capacity) {
+          await attachPayment({
+            playerIds: capacity.billableIds,
+            paymentIntentId,
+          });
+        }
+        await syncPaymentIntentDetails(
+          stripe,
+          paymentIntentId,
+          payload,
+          clientIp,
+          fingerprint,
+          price,
+        );
+      } catch (error) {
+        console.error("Payment setup after the card form loaded failed:", error);
+      }
+    });
 
     if (paymentIntent.status === "succeeded") {
       return NextResponse.json({

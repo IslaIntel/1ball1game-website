@@ -64,11 +64,12 @@ type RegistrationPaymentProps = {
 
 type PaymentFormProps = {
   onReadyChange?: (ready: boolean) => void;
+  onLoadError?: (message: string) => void;
   paymentIntentId: string | null;
 };
 
 const PaymentForm = forwardRef<RegistrationPaymentHandle, PaymentFormProps>(
-  function PaymentForm({ onReadyChange, paymentIntentId }, ref) {
+  function PaymentForm({ onReadyChange, onLoadError, paymentIntentId }, ref) {
     const stripe = useStripe();
     const elements = useElements();
     const processingRef = useRef(false);
@@ -137,7 +138,13 @@ const PaymentForm = forwardRef<RegistrationPaymentHandle, PaymentFormProps>(
     return (
       <PaymentElement
         onReady={() => onReadyChange?.(true)}
-        onLoadError={() => onReadyChange?.(false)}
+        onLoadError={(event) => {
+          onReadyChange?.(false);
+          onLoadError?.(
+            event.error?.message ||
+              "The card form could not be loaded. Please try again.",
+          );
+        }}
         options={{
           layout: {
             type: "accordion",
@@ -171,7 +178,15 @@ export const RegistrationPayment = forwardRef<
   const [discountCents, setDiscountCents] = useState(0);
   const [couponLoading, setCouponLoading] = useState(false);
   const [couponError, setCouponError] = useState("");
+  const [setupAttempt, setSetupAttempt] = useState(0);
+  const [elementError, setElementError] = useState("");
   const paymentFormRef = useRef<RegistrationPaymentHandle>(null);
+  const onErrorRef = useRef(onError);
+  const onReadyChangeRef = useRef(onReadyChange);
+  const payloadRef = useRef(payload);
+  onErrorRef.current = onError;
+  onReadyChangeRef.current = onReadyChange;
+  payloadRef.current = payload;
   const fingerprint = useMemo(
     () => registrationFingerprint(payload),
     [payload],
@@ -228,10 +243,12 @@ export const RegistrationPayment = forwardRef<
     setClientSecret(null);
     setPaymentIntentId(null);
     setElementReady(false);
-    onReadyChange?.(false);
+    setElementError("");
+    onReadyChangeRef.current?.(false);
+    const requestPayload = payloadRef.current;
 
     async function createIntent() {
-      const maxAttempts = 3;
+      const maxAttempts = 2;
       let lastError = "Unable to load payment form.";
 
       for (let attempt = 0; attempt < maxAttempts; attempt++) {
@@ -239,7 +256,8 @@ export const RegistrationPayment = forwardRef<
           const response = await fetch("/api/stripe/create-payment-intent", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
+            body: JSON.stringify(requestPayload),
+            signal: AbortSignal.timeout(20_000),
           });
 
           const data = (await response.json().catch(() => null)) as {
@@ -261,15 +279,20 @@ export const RegistrationPayment = forwardRef<
           lastError = data?.error ?? "Unable to load payment form.";
           const retryable = response.status >= 500 || response.status === 429;
           if (!retryable || attempt === maxAttempts - 1) {
-            if (!scholarshipAppliedRef.current) onError?.(lastError);
+            if (!scholarshipAppliedRef.current) onErrorRef.current?.(lastError);
             setLoading(false);
             return;
           }
-        } catch {
+        } catch (error) {
           if (cancelled) return;
-          lastError = "Unable to load payment form.";
-          if (attempt === maxAttempts - 1) {
-            if (!scholarshipAppliedRef.current) onError?.(lastError);
+          const timedOut =
+            error instanceof DOMException &&
+            (error.name === "TimeoutError" || error.name === "AbortError");
+          lastError = timedOut
+            ? "Secure payment is taking too long. Please try again."
+            : "Unable to load payment form.";
+          if (timedOut || attempt === maxAttempts - 1) {
+            if (!scholarshipAppliedRef.current) onErrorRef.current?.(lastError);
             setLoading(false);
             return;
           }
@@ -284,7 +307,7 @@ export const RegistrationPayment = forwardRef<
     return () => {
       cancelled = true;
     };
-  }, [fingerprint, onError, onReadyChange]);
+  }, [fingerprint, setupAttempt]);
 
   useEffect(() => {
     onReadyChange?.(
@@ -408,23 +431,47 @@ export const RegistrationPayment = forwardRef<
         ) : loading && !clientSecret ? (
           <p className="text-sm text-ink/50">Connecting to secure payment…</p>
         ) : clientSecret ? (
-          <Elements
-            stripe={stripePromise}
-            options={{
-              clientSecret,
-              appearance: stripeAppearance,
-            }}
-          >
-            <PaymentForm
-              ref={paymentFormRef}
-              paymentIntentId={paymentIntentId}
-              onReadyChange={setElementReady}
-            />
-          </Elements>
+          <div className="space-y-3">
+            {elementError ? (
+              <p className="text-sm text-magenta-deep">{elementError}</p>
+            ) : null}
+            <Elements
+              stripe={stripePromise}
+              options={{
+                clientSecret,
+                appearance: stripeAppearance,
+              }}
+            >
+              <PaymentForm
+                ref={paymentFormRef}
+                paymentIntentId={paymentIntentId}
+                onReadyChange={setElementReady}
+                onLoadError={setElementError}
+              />
+            </Elements>
+            {elementError ? (
+              <button
+                type="button"
+                onClick={() => setSetupAttempt((attempt) => attempt + 1)}
+                className="rounded-full border border-ink/20 px-5 py-2.5 text-sm font-semibold text-ink transition-colors hover:border-ink hover:bg-ink hover:text-paper"
+              >
+                Try again
+              </button>
+            ) : null}
+          </div>
         ) : (
-          <p className="text-sm text-magenta-deep">
-            Payment form unavailable. Please refresh or contact info@1ball1game.org.
-          </p>
+          <div className="space-y-3">
+            <p className="text-sm text-magenta-deep">
+              Payment form unavailable. Please try again, or contact info@1ball1game.org.
+            </p>
+            <button
+              type="button"
+              onClick={() => setSetupAttempt((attempt) => attempt + 1)}
+              className="rounded-full border border-ink/20 px-5 py-2.5 text-sm font-semibold text-ink transition-colors hover:border-ink hover:bg-ink hover:text-paper"
+            >
+              Try again
+            </button>
+          </div>
         )}
       </div>
     </PaymentSection>
