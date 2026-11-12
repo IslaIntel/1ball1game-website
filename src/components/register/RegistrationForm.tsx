@@ -64,6 +64,55 @@ const fieldClass =
 const labelClass = "mb-1.5 block text-sm font-medium text-ink/80";
 const errorClass = "mt-1.5 text-sm text-magenta-deep";
 
+const DRAFT_VERSION = 1;
+
+type RegistrationDraft = {
+  version: number;
+  season: string;
+  step: number;
+  parent: ParentInfo;
+  players: PlayerInfo[];
+  waivers: Waivers;
+  parentSignature: string;
+};
+
+function draftStorageKey(season: string) {
+  return `1b1g-registration-draft:${season}`;
+}
+
+function readRegistrationDraft(season: string): RegistrationDraft | null {
+  try {
+    const raw = sessionStorage.getItem(draftStorageKey(season));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<RegistrationDraft>;
+    if (parsed.version !== DRAFT_VERSION || parsed.season !== season) return null;
+    if (!parsed.parent || !Array.isArray(parsed.players) || parsed.players.length === 0) {
+      return null;
+    }
+    if (!parsed.waivers || typeof parsed.parentSignature !== "string") return null;
+    if (typeof parsed.step !== "number" || parsed.step < 0 || parsed.step > 4) return null;
+    return parsed as RegistrationDraft;
+  } catch {
+    return null;
+  }
+}
+
+function writeRegistrationDraft(draft: RegistrationDraft) {
+  try {
+    sessionStorage.setItem(draftStorageKey(draft.season), JSON.stringify(draft));
+  } catch {
+    // A private-browsing tab can refuse storage. The form still works for this visit.
+  }
+}
+
+function clearRegistrationDraft(season: string) {
+  try {
+    sessionStorage.removeItem(draftStorageKey(season));
+  } catch {
+    // Ignore. Card details are never stored here.
+  }
+}
+
 function Field({
   label,
   id,
@@ -129,6 +178,41 @@ export function RegistrationForm({
   const [reservation, setReservation] = useState<Reservation | null>(null);
   const [reserveState, setReserveState] = useState<"idle" | "loading" | "error">("idle");
   const [outcome, setOutcome] = useState<EnrollmentChild[] | null>(null);
+  const [draftSeason, setDraftSeason] = useState(season);
+  const [draftReady, setDraftReady] = useState(false);
+  if (draftSeason !== season) {
+    setDraftSeason(season);
+    setDraftReady(false);
+  }
+
+  useEffect(() => {
+    const saved = readRegistrationDraft(season);
+    if (saved) {
+      setStep(saved.step);
+      setParent(saved.parent);
+      setPlayers(saved.players);
+      setWaivers({ ...emptyWaivers(), ...saved.waivers });
+      setParentSignature(saved.parentSignature);
+    }
+    setDraftReady(true);
+  }, [season]);
+
+  useEffect(() => {
+    if (!draftReady) return;
+    if (status === "success") {
+      clearRegistrationDraft(season);
+      return;
+    }
+    writeRegistrationDraft({
+      version: DRAFT_VERSION,
+      season,
+      step,
+      parent,
+      players,
+      waivers,
+      parentSignature,
+    });
+  }, [draftReady, status, season, step, parent, players, waivers, parentSignature]);
 
   useEffect(() => {
     const warm = () => {
@@ -300,6 +384,7 @@ export function RegistrationForm({
         }
       }
       if (capOn && reservation) setOutcome(reservation.children);
+      clearRegistrationDraft(season);
       setStatus("success");
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (error) {
@@ -495,6 +580,26 @@ export function RegistrationForm({
                     onReadyChange={setPaymentReady}
                     onAmountDueChange={setAmountDueCents}
                     onError={setErrorMessage}
+                    onAlreadyPaid={() => {
+                      if (reservation) setOutcome(reservation.children);
+                      clearRegistrationDraft(season);
+                      setStatus("success");
+                    }}
+                    onWaitlist={(children) => {
+                      setOutcome(children);
+                      setReservation((current) =>
+                        current
+                          ? { ...current, children, billableCount: 0 }
+                          : {
+                              registrationId: children[0]?.registrationId ?? "",
+                              children,
+                              billableCount: 0,
+                              unitPriceCents: FEE_CENTS,
+                            },
+                      );
+                      clearRegistrationDraft(season);
+                      setStatus("success");
+                    }}
                   />
                 ) : null}
               </>

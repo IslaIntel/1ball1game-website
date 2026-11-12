@@ -6,6 +6,7 @@ import {
 } from "@/lib/stripe-winter-product";
 import { WINTER_SEASON } from "@/lib/registration-status";
 import { winterSessionById, winterSessionText } from "@/lib/winter-streetball";
+import { createPaymentAttempt, stripeRequestId } from "@/lib/stripe-payment-intent";
 import { attachPayment, lookupOffer, winterCapActive } from "@/lib/winter-capacity";
 
 /**
@@ -54,26 +55,41 @@ export async function POST(request: Request) {
         registration_submitted: "false",
       },
     };
-    let intent = await stripe.paymentIntents.create(params, {
-      idempotencyKey: `offer_v1_${token}`,
-    });
-    if (intent.status === "canceled") {
-      intent = await stripe.paymentIntents.create(params, {
-        idempotencyKey: `offer_v1_${token}_${Date.now()}`,
+    const attempt = await createPaymentAttempt(stripe, params, `offer_v2_${token}`);
+    const intent = attempt.intent;
+    const inProgress =
+      intent.status === "processing" || intent.status === "requires_capture";
+    if (
+      intent.status === "canceled" ||
+      (!intent.client_secret && intent.status !== "succeeded" && !inProgress)
+    ) {
+      console.error("Offer payment setup failed", {
+        registrationId: child.registrationId,
+        paymentIntentId: intent.id,
+        idempotencyKey: attempt.idempotencyKey,
+        status: intent.status,
       });
+      return NextResponse.json(
+        { error: "Unable to start payment. Please try again." },
+        { status: 502 },
+      );
     }
     await attachPayment({ playerIds: [child.playerId], paymentIntentId: intent.id });
 
     return NextResponse.json({
-      clientSecret: intent.client_secret,
+      ...(intent.status === "succeeded" || inProgress ? {} : { clientSecret: intent.client_secret }),
       alreadyPaid: intent.status === "succeeded",
+      processing: inProgress,
       amountCents: price.unitAmount,
       playerName: child.playerName,
       session: session ? winterSessionText(session) : child.sessionId,
       expiresAt: child.reservationExpiresAt,
     });
   } catch (error) {
-    console.error("Offer payment setup failed:", error);
+    console.error("Offer payment setup failed", {
+      stripeRequestId: stripeRequestId(error),
+      message: error instanceof Error ? error.message : "unknown",
+    });
     return NextResponse.json({ error: "Unable to start payment. Please try again." }, { status: 502 });
   }
 }

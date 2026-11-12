@@ -6,6 +6,7 @@ import { getClientIp } from "@/lib/client-ip";
 import { getStripe } from "@/lib/stripe";
 import {
   createOrReusePaymentIntent,
+  stripeRequestId,
   syncPaymentIntentDetails,
 } from "@/lib/stripe-payment-intent";
 import { validateRegistrationPayload } from "@/lib/submit-registration";
@@ -15,6 +16,7 @@ import {
   attachPayment,
   billableChildren,
   getRegistrationChildren,
+  reservePlaces,
   winterCapActive,
 } from "@/lib/winter-capacity";
 
@@ -91,23 +93,34 @@ export async function POST(request: Request) {
   void pricePromise.catch(() => undefined);
 
   // With the session cap on, charge only the children who hold a place.
+  // A missing hold means it expired or was never taken: ask once more. A full
+  // session comes back as the free waitlist, with no card payment.
   let capacity: { registrationId: string; billableIds: string[] } | null = null;
   if (winterCapActive()) {
     try {
-      const { registrationId, children } = await getRegistrationChildren(payload);
-      const billable = billableChildren(children);
+      let held = await getRegistrationChildren(payload);
+      let billable = billableChildren(held.children);
       if (billable.length === 0) {
-        return NextResponse.json(
-          {
-            error: "No places are being held for payment. Please go back and continue again.",
-            waitlistOnly: children.length > 0,
-          },
-          { status: 409 },
-        );
+        const price = await pricePromise;
+        held = await reservePlaces(payload, price.unitAmount);
+        billable = billableChildren(held.children);
+        if (billable.length === 0) {
+          return NextResponse.json({
+            waitlistOnly: true,
+            children: held.children,
+          });
+        }
       }
-      capacity = { registrationId, billableIds: billable.map((c) => c.playerId) };
+      capacity = {
+        registrationId: held.registrationId,
+        billableIds: billable.map((child) => child.playerId),
+      };
     } catch (error) {
-      console.error("Capacity lookup before payment failed:", error);
+      console.error("Capacity lookup before payment failed", {
+        registrationId: `reg_${fingerprint}`,
+        stripeRequestId: stripeRequestId(error),
+        message: error instanceof Error ? error.message : "unknown",
+      });
       return NextResponse.json(
         { error: "We could not confirm your places. Please try again." },
         { status: 502 },
@@ -115,11 +128,12 @@ export async function POST(request: Request) {
     }
   }
 
+  let idempotencyKey = "";
   try {
     const price = await pricePromise;
     const chargedCount = capacity ? capacity.billableIds.length : playerCount;
     const amount = price.unitAmount * chargedCount;
-    const paymentIntent = await createOrReusePaymentIntent(stripe, {
+    const attempt = await createOrReusePaymentIntent(stripe, {
       amount,
       email,
       playerCount: chargedCount,
@@ -138,8 +152,54 @@ export async function POST(request: Request) {
           }
         : {}),
     });
+    const paymentIntent = attempt.intent;
+    idempotencyKey = attempt.idempotencyKey;
+    const paymentIntentId = paymentIntent.id;
+    const registrationId = capacity?.registrationId ?? `reg_${fingerprint}`;
 
-    if (!paymentIntent.client_secret) {
+    if (paymentIntent.status === "succeeded") {
+      return NextResponse.json({
+        alreadyPaid: true,
+        paymentIntentId,
+        amount,
+      });
+    }
+
+    const inProgress =
+      paymentIntent.status === "processing" ||
+      paymentIntent.status === "requires_capture";
+    if (inProgress) {
+      after(async () => {
+        if (!capacity) return;
+        try {
+          await attachPayment({
+            playerIds: capacity.billableIds,
+            paymentIntentId,
+          });
+        } catch (error) {
+          console.error("Could not record an in-progress payment", {
+            registrationId,
+            paymentIntentId,
+            idempotencyKey,
+            stripeRequestId: stripeRequestId(error),
+            message: error instanceof Error ? error.message : "unknown",
+          });
+        }
+      });
+      return NextResponse.json({
+        processing: true,
+        paymentIntentId,
+        amount,
+      });
+    }
+
+    if (!paymentIntent.client_secret || paymentIntent.status === "canceled") {
+      console.error("Payment setup failed", {
+        registrationId,
+        paymentIntentId,
+        idempotencyKey,
+        status: paymentIntent.status,
+      });
       return NextResponse.json(
         { error: "Unable to start payment. Please try again." },
         { status: 502 },
@@ -149,7 +209,6 @@ export async function POST(request: Request) {
     // Recording the payment on the sheet and copying registration details onto
     // the intent are not needed to show the card form. Do them after the
     // response so parents are not stuck on "Connecting to secure payment…".
-    const paymentIntentId = paymentIntent.id;
     after(async () => {
       try {
         if (capacity) {
@@ -167,26 +226,28 @@ export async function POST(request: Request) {
           price,
         );
       } catch (error) {
-        console.error("Payment setup after the card form loaded failed:", error);
+        console.error("Payment setup after the card form loaded failed", {
+          registrationId,
+          paymentIntentId,
+          idempotencyKey,
+          stripeRequestId: stripeRequestId(error),
+          message: error instanceof Error ? error.message : "unknown",
+        });
       }
     });
 
-    if (paymentIntent.status === "succeeded") {
-      return NextResponse.json({
-        clientSecret: paymentIntent.client_secret,
-        paymentIntentId: paymentIntent.id,
-        amount,
-        alreadyPaid: true,
-      });
-    }
-
     return NextResponse.json({
       clientSecret: paymentIntent.client_secret,
-      paymentIntentId: paymentIntent.id,
+      paymentIntentId,
       amount,
     });
   } catch (error) {
-    console.error("Stripe paymentIntents.create failed:", error);
+    console.error("Payment setup failed", {
+      registrationId: capacity?.registrationId ?? `reg_${fingerprint}`,
+      idempotencyKey,
+      stripeRequestId: stripeRequestId(error),
+      message: error instanceof Error ? error.message : "unknown",
+    });
     return NextResponse.json(
       { error: "Unable to start payment. Please try again." },
       { status: 502 },

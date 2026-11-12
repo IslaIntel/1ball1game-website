@@ -15,8 +15,9 @@ import { WINTER_STREETBALL } from "@/lib/winter-streetball";
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "");
 
 type Offer = {
-  clientSecret: string;
+  clientSecret?: string;
   alreadyPaid?: boolean;
+  processing?: boolean;
   amountCents: number;
   playerName: string;
   session: string;
@@ -44,7 +45,11 @@ export function OfferCheckout({ token }: { token: string }) {
       });
       const data = (await response.json().catch(() => null)) as (Offer & { error?: string }) | null;
       if (cancelled) return;
-      if (!response.ok || !data?.clientSecret) {
+      if (
+        !response.ok ||
+        !data ||
+        (!data.clientSecret && !data.alreadyPaid && !data.processing)
+      ) {
         setError(data?.error ?? "This offer is no longer available.");
         return;
       }
@@ -135,9 +140,16 @@ export function OfferCheckout({ token }: { token: string }) {
         </span>
       </div>
       <div className="mt-4">
-        <Elements stripe={stripePromise} options={{ clientSecret: offer.clientSecret }}>
-          <OfferPaymentForm amountCents={offer.amountCents} onPaid={() => setPaid(true)} />
-        </Elements>
+        {offer.processing ? (
+          <p className="rounded-xl border border-magenta/20 bg-magenta/5 px-4 py-3 text-sm text-ink/75">
+            Your payment is processing. This page will not charge the card again.
+            You can leave it open, or refresh in a few minutes for the confirmation.
+          </p>
+        ) : offer.clientSecret ? (
+          <Elements stripe={stripePromise} options={{ clientSecret: offer.clientSecret }}>
+            <OfferPaymentForm amountCents={offer.amountCents} onPaid={() => setPaid(true)} />
+          </Elements>
+        ) : null}
       </div>
     </div>
   );

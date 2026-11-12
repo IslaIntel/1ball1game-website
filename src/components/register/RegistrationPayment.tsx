@@ -18,6 +18,7 @@ import {
 import { PaymentSection } from "@/components/register/PaymentSection";
 import type { RegistrationPayload } from "@/lib/registration";
 import { registrationFingerprint } from "@/lib/registration-idempotency";
+import type { EnrollmentChild } from "@/lib/winter-capacity-config";
 
 const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "",
@@ -60,6 +61,8 @@ type RegistrationPaymentProps = {
   onReadyChange?: (ready: boolean) => void;
   onAmountDueChange?: (amountDueCents: number) => void;
   onError?: (message: string) => void;
+  onAlreadyPaid?: () => void;
+  onWaitlist?: (children: EnrollmentChild[]) => void;
 };
 
 type PaymentFormProps = {
@@ -166,7 +169,7 @@ export const RegistrationPayment = forwardRef<
   RegistrationPaymentHandle,
   RegistrationPaymentProps
 >(function RegistrationPayment(
-  { payload, totalCents, playerCount, onReadyChange, onAmountDueChange, onError },
+  { payload, totalCents, playerCount, onReadyChange, onAmountDueChange, onError, onAlreadyPaid, onWaitlist },
   ref,
 ) {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
@@ -180,12 +183,17 @@ export const RegistrationPayment = forwardRef<
   const [couponError, setCouponError] = useState("");
   const [setupAttempt, setSetupAttempt] = useState(0);
   const [elementError, setElementError] = useState("");
+  const [paymentState, setPaymentState] = useState<"form" | "processing">("form");
   const paymentFormRef = useRef<RegistrationPaymentHandle>(null);
   const onErrorRef = useRef(onError);
   const onReadyChangeRef = useRef(onReadyChange);
+  const onAlreadyPaidRef = useRef(onAlreadyPaid);
+  const onWaitlistRef = useRef(onWaitlist);
   const payloadRef = useRef(payload);
   onErrorRef.current = onError;
   onReadyChangeRef.current = onReadyChange;
+  onAlreadyPaidRef.current = onAlreadyPaid;
+  onWaitlistRef.current = onWaitlist;
   payloadRef.current = payload;
   const fingerprint = useMemo(
     () => registrationFingerprint(payload),
@@ -244,6 +252,7 @@ export const RegistrationPayment = forwardRef<
     setPaymentIntentId(null);
     setElementReady(false);
     setElementError("");
+    setPaymentState("form");
     onReadyChangeRef.current?.(false);
     const requestPayload = payloadRef.current;
 
@@ -264,14 +273,41 @@ export const RegistrationPayment = forwardRef<
             clientSecret?: string;
             paymentIntentId?: string;
             alreadyPaid?: boolean;
+            processing?: boolean;
+            waitlistOnly?: boolean;
+            children?: EnrollmentChild[];
             error?: string;
           } | null;
 
           if (cancelled) return;
 
+          if (response.ok && data?.waitlistOnly) {
+            setClientSecret(null);
+            setLoading(false);
+            onWaitlistRef.current?.(data.children ?? []);
+            return;
+          }
+
+          if (response.ok && data?.alreadyPaid && data.paymentIntentId) {
+            setClientSecret(null);
+            setPaymentIntentId(data.paymentIntentId);
+            setLoading(false);
+            onAlreadyPaidRef.current?.();
+            return;
+          }
+
+          if (response.ok && data?.processing && data.paymentIntentId) {
+            setClientSecret(null);
+            setPaymentIntentId(data.paymentIntentId);
+            setPaymentState("processing");
+            setLoading(false);
+            return;
+          }
+
           if (response.ok && data?.clientSecret && data?.paymentIntentId) {
             setClientSecret(data.clientSecret);
             setPaymentIntentId(data.paymentIntentId);
+            setPaymentState("form");
             setLoading(false);
             return;
           }
@@ -430,6 +466,11 @@ export const RegistrationPayment = forwardRef<
           </p>
         ) : loading && !clientSecret ? (
           <p className="text-sm text-ink/50">Connecting to secure payment…</p>
+        ) : paymentState === "processing" ? (
+          <p className="rounded-xl border border-magenta/20 bg-magenta/5 px-4 py-3 text-sm text-ink/75">
+            Your payment is processing. This page will not charge the card again.
+            You can leave it open, or refresh in a few minutes for the confirmation.
+          </p>
         ) : clientSecret ? (
           <div className="space-y-3">
             {elementError ? (

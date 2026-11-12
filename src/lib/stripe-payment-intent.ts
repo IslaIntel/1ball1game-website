@@ -9,8 +9,34 @@ const REUSABLE_STATUSES = new Set([
   "requires_action",
 ]);
 
+const IN_PROGRESS_STATUSES = new Set(["processing", "requires_capture"]);
+
 /** Bump this if create params change so stale Stripe idempotency keys cannot collide. */
-export const PAYMENT_INTENT_KEY_PREFIX = "reg_card_v5_";
+export const PAYMENT_INTENT_KEY_PREFIX = "reg_card_v6_";
+
+export type PaymentAttempt = {
+  intent: Stripe.PaymentIntent;
+  idempotencyKey: string;
+};
+
+export function paymentAttemptKey(fingerprint: string, suffix?: string) {
+  return `${PAYMENT_INTENT_KEY_PREFIX}${fingerprint}${suffix ?? ""}`;
+}
+
+export function stripeRequestId(error: unknown) {
+  if (!error || typeof error !== "object" || !("requestId" in error)) return undefined;
+  const requestId = (error as { requestId?: unknown }).requestId;
+  return typeof requestId === "string" ? requestId : undefined;
+}
+
+/** Settled or still collectable. A canceled payment is neither. */
+function isCurrentPayment(status: Stripe.PaymentIntent.Status) {
+  return (
+    status === "succeeded" ||
+    IN_PROGRESS_STATUSES.has(status) ||
+    REUSABLE_STATUSES.has(status)
+  );
+}
 
 export function isStripeIdempotencyConflict(error: unknown) {
   if (!error || typeof error !== "object") return false;
@@ -93,15 +119,45 @@ export async function findExistingPaymentIntent(
 ) {
   const listed = await stripe.paymentIntents.list({ limit: 40 });
   const matches = listed.data.filter(
-    (intent) => intent.metadata.registration_fingerprint === fingerprint,
+    (intent) =>
+      intent.metadata.registration_fingerprint === fingerprint &&
+      intent.amount === amount,
   );
 
-  const reusable = matches.find(
-    (intent) => intent.amount === amount && REUSABLE_STATUSES.has(intent.status),
+  return (
+    matches.find((intent) => intent.status === "succeeded") ??
+    matches.find((intent) => IN_PROGRESS_STATUSES.has(intent.status)) ??
+    matches.find((intent) => REUSABLE_STATUSES.has(intent.status)) ??
+    null
   );
-  if (reusable) return reusable;
+}
 
-  return matches.find((intent) => intent.status === "succeeded") ?? null;
+/**
+ * Stripe stores a create response for 24 hours. That copy keeps the status from
+ * the moment of creation, so a payment canceled later still comes back as
+ * `requires_payment_method`. Always retrieve the live payment before using it.
+ * A replacement key includes the canceled id, so a retry and a second tab share
+ * one new payment instead of each minting their own.
+ */
+export async function createPaymentAttempt(
+  stripe: Stripe,
+  params: Stripe.PaymentIntentCreateParams,
+  idempotencyKey: string,
+): Promise<PaymentAttempt> {
+  const created = await stripe.paymentIntents.create(params, { idempotencyKey });
+  const live = await stripe.paymentIntents.retrieve(created.id);
+  if (live.status !== "canceled") {
+    return { intent: live, idempotencyKey };
+  }
+
+  const replacementKey = `${idempotencyKey}_${live.id}`;
+  const replacement = await stripe.paymentIntents.create(params, {
+    idempotencyKey: replacementKey,
+  });
+  return {
+    intent: await stripe.paymentIntents.retrieve(replacement.id),
+    idempotencyKey: replacementKey,
+  };
 }
 
 export async function createOrReusePaymentIntent(
@@ -117,31 +173,39 @@ export async function createOrReusePaymentIntent(
     /** Changes the idempotency key, e.g. when the number of paid places changes. */
     idempotencySuffix?: string;
   },
-) {
+): Promise<PaymentAttempt> {
   const params = stablePaymentIntentParams(options);
-  const idempotencyKey = `${PAYMENT_INTENT_KEY_PREFIX}${options.fingerprint}${options.idempotencySuffix ?? ""}`;
+  const idempotencyKey = paymentAttemptKey(
+    options.fingerprint,
+    options.idempotencySuffix,
+  );
+
+  const existing = await findExistingPaymentIntent(
+    stripe,
+    options.fingerprint,
+    options.amount,
+  );
+  if (existing) {
+    const live = await stripe.paymentIntents.retrieve(existing.id);
+    if (isCurrentPayment(live.status)) {
+      return { intent: live, idempotencyKey };
+    }
+  }
 
   try {
-    const intent = await stripe.paymentIntents.create(params, { idempotencyKey });
-    if (intent.status === "canceled" && options.idempotencySuffix !== undefined) {
-      // The hold expired and this payment was cancelled; start a fresh one.
-      return await stripe.paymentIntents.create(params, {
-        idempotencyKey: `${idempotencyKey}_${Date.now()}`,
-      });
-    }
-    return intent;
+    return await createPaymentAttempt(stripe, params, idempotencyKey);
   } catch (error) {
-    const existing = await findExistingPaymentIntent(
+    const recovered = await findExistingPaymentIntent(
       stripe,
       options.fingerprint,
       options.amount,
     );
-    if (existing) return existing;
-
-    if (!isStripeIdempotencyConflict(error)) {
-      throw error;
+    if (recovered) {
+      const live = await stripe.paymentIntents.retrieve(recovered.id);
+      if (isCurrentPayment(live.status)) {
+        return { intent: live, idempotencyKey };
+      }
     }
-
     throw error;
   }
 }
