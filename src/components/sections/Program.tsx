@@ -108,7 +108,7 @@ export function Program() {
             />
             {REGISTRATION_OPEN ? (
               <p className="max-w-md text-sm leading-relaxed text-ink/60">
-                Winter 2026 Indoor Streetball is open for 2nd through 4th grade.
+                Winter 2026 Indoor Streetball is open for 2nd through 4th grade, and for 5th grade boys.
                 Spring 2027 PTA Rec Soccer collects interest for Kindergarten
                 through 6th grade, with no payment.
               </p>

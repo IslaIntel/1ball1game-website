@@ -43,7 +43,7 @@ One caution: the payment screen on this copy is the real card form. Please stop 
 
 Here is the check we want you to see before we go further:
 
-1. Open the link and choose Winter Streetball, Monday 5–6 pm, 2nd grade girls. You should see places remaining.
+1. Open the link and choose Winter Streetball, Monday 5–6 pm, 5th grade boys. You should see places remaining.
 2. Enter one fake parent and one child named Test Child. Stop at the card screen.
 3. The cases we still need to confirm with you are the 12th child getting a place, the 13th child joining the free waitlist at $0, one sibling in and one waiting with a charge only for the child who got a place, an abandoned payment giving the place back, and you offering the next family a link to accept and pay.
 
@@ -68,7 +68,7 @@ Julius
 
 | Day | Time | Group | Session ID |
 | --- | --- | --- | --- |
-| Monday | 5–6 pm | 2nd grade girls | `winter-2026-mon-1700-2g` |
+| Monday | 5–6 pm | 5th grade boys | `winter-2026-mon-1700-2g` |
 | Monday | 6–7 pm | 2nd grade boys | `winter-2026-mon-1800-2b` |
 | Wednesday | 5–6 pm | 4th grade girls | `winter-2026-wed-1700-4g` |
 | Wednesday | 6–7 pm | 4th grade boys | `winter-2026-wed-1800-4b` |

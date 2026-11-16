@@ -22,7 +22,7 @@ export const SCHOOLS = [
 ] as const;
 
 export const GRADES = ["Kindergarten", "1st Grade", "2nd Grade"] as const;
-export const WINTER_GRADES = ["2nd Grade", "3rd Grade", "4th Grade"] as const;
+export const WINTER_GRADES = ["2nd Grade", "3rd Grade", "4th Grade", "5th Grade"] as const;
 export const SPRING_GRADES = [
   "Kindergarten",
   "1st Grade",
@@ -356,7 +356,7 @@ const WINTER_WAIVER_WORDING: [string, string][] = [
     "and my school’s PTA Soccer Club to utilize photographs or video recordings taken during recreational matches, practices, and events.",
     "to utilize photographs or video recordings taken during Winter Streetball sessions and events.",
   ],
-  ["Kindergarten through 6th Grade children.", "2nd through 4th Grade children."],
+  ["Kindergarten through 6th Grade children.", "2nd through 4th Grade children, and 5th grade boys."],
   ["our participants and volunteer staff,", "our participants and coaching staff,"],
   ["regarding sideline misconduct.", "regarding spectator misconduct."],
   [

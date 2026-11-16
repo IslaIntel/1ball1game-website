@@ -7,7 +7,7 @@ export const WINTER_STREETBALL = {
   intro:
     "Winter Streetball at Lemon Road provides a fast-paced, indoor free-play environment designed to encourage creativity, quick decision-making, and confidence on the ball. Structured around small-sided games in the gym, the program allows players to compete and experiment naturally away from the pressure of regular league play. Professional coaches oversee every session, using the flow of the games to guide technical development and keep the environment fun and competitive.",
   details: [
-    { label: "Eligible players", value: "2nd, 3rd, and 4th graders" },
+    { label: "Eligible players", value: "2nd, 3rd, and 4th graders, and 5th grade boys" },
     {
       label: "Session format",
       value:
@@ -35,7 +35,7 @@ export const WINTER_SCHEDULE: { day: string; sessions: WinterSession[] }[] = [
   {
     day: "Monday",
     sessions: [
-      { id: "winter-2026-mon-1700-2g", day: "Monday", time: "5–6 pm", group: "2nd grade girls", grade: "2nd Grade", gender: "Female" },
+      { id: "winter-2026-mon-1700-2g", day: "Monday", time: "5–6 pm", group: "5th grade boys", grade: "5th Grade", gender: "Male" },
       { id: "winter-2026-mon-1800-2b", day: "Monday", time: "6–7 pm", group: "2nd grade boys", grade: "2nd Grade", gender: "Male" },
     ],
   },

@@ -431,14 +431,14 @@ export function RegistrationForm({
           ) : null}
         </div>
         <p className="eyebrow mt-8 text-ink/50">
-          {season} · {requiresPayment ? "2–4" : "K–6"}
+          {season} · {requiresPayment ? "2–4 and 5th grade boys" : "K–6"}
         </p>
         <h1 className="mt-4 font-display text-[clamp(2.4rem,5vw,3.8rem)] font-semibold leading-[0.98] text-ink">
           Soccer <span className="text-magenta">registration</span> made simple.
         </h1>
         <p className="mt-5 max-w-md text-base leading-relaxed text-ink/65">
           {requiresPayment
-            ? "Register your 2nd through 4th graders for Winter Streetball: indoor soccer at Lemon Road Elementary Gym, with small-sided games led by professional coaches."
+            ? "Register your 2nd through 4th graders, and 5th grade boys, for Winter Streetball: indoor soccer at Lemon Road Elementary Gym, with small-sided games led by professional coaches."
             : "Returning in April, the PTA Soccer Rec Program brings the game back to the grass fields for a fun, parent-led spring season for Kindergarten through 6th grade. Please register today to express your interest so we can accurately request our county field allocations. NO PAYMENT REQUIRED TODAY - REGISTERING INTEREST ONLY. Practice dates and game days to be released in January."}
         </p>
         {requiresPayment ? (
@@ -455,7 +455,7 @@ export function RegistrationForm({
               src="/images/hero-soccer-k2.png"
               alt={
                 requiresPayment
-                  ? "2nd through 4th grade children playing soccer"
+                  ? "2nd through 4th grade children and 5th grade boys playing soccer"
                   : "Kindergarten through 6th grade children playing soccer"
               }
               fill
