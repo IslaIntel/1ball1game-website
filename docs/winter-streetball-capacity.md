@@ -70,7 +70,7 @@ Julius
 | --- | --- | --- | --- |
 | Monday | 5–6 pm | 5th grade boys | `winter-2026-mon-1700-2g` |
 | Monday | 6–7 pm | 2nd grade boys | `winter-2026-mon-1800-2b` |
-| Wednesday | 5–6 pm | 4th grade girls | `winter-2026-wed-1700-4g` |
+| Wednesday | 5–6 pm | 4th and 5th grade girls | `winter-2026-wed-1700-4g` |
 | Wednesday | 6–7 pm | 4th grade boys | `winter-2026-wed-1800-4b` |
 | Thursday | 5–6 pm | 3rd grade girls | `winter-2026-thu-1700-3g` |
 | Thursday | 6–7 pm | 3rd grade boys | `winter-2026-thu-1800-3b` |

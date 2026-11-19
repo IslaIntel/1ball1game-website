@@ -94,7 +94,7 @@ function SeasonPicker({
             <span className="block font-semibold">Program details</span>
             <span className="mt-2 block text-ink/70">
               <span className="font-semibold text-ink">Eligible players:</span>{" "}
-              2nd, 3rd, and 4th graders, and 5th grade boys
+              2nd, 3rd, and 4th graders, 5th grade boys, and 5th grade girls
             </span>
             <span className="mt-1 block text-ink/70">
               <span className="font-semibold text-ink">Session format:</span>{" "}

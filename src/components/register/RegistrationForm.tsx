@@ -49,6 +49,8 @@ import {
 import {
   WINTER_SCHEDULE,
   winterSessionById,
+  winterSessionGrades,
+  winterSessionIsMultiGrade,
   winterSessionText,
 } from "@/lib/winter-streetball";
 
@@ -431,14 +433,14 @@ export function RegistrationForm({
           ) : null}
         </div>
         <p className="eyebrow mt-8 text-ink/50">
-          {season} · {requiresPayment ? "2–4 and 5th grade boys" : "K–6"}
+          {season} · {requiresPayment ? "2–4, 5th boys, 5th girls" : "K–6"}
         </p>
         <h1 className="mt-4 font-display text-[clamp(2.4rem,5vw,3.8rem)] font-semibold leading-[0.98] text-ink">
           Soccer <span className="text-magenta">registration</span> made simple.
         </h1>
         <p className="mt-5 max-w-md text-base leading-relaxed text-ink/65">
           {requiresPayment
-            ? "Register your 2nd through 4th graders, and 5th grade boys, for Winter Streetball: indoor soccer at Lemon Road Elementary Gym, with small-sided games led by professional coaches."
+            ? "Register your 2nd through 4th graders, 5th grade boys, and 5th grade girls for Winter Streetball: indoor soccer at Lemon Road Elementary Gym, with small-sided games led by professional coaches."
             : "Returning in April, the PTA Soccer Rec Program brings the game back to the grass fields for a fun, parent-led spring season for Kindergarten through 6th grade. Please register today to express your interest so we can accurately request our county field allocations. NO PAYMENT REQUIRED TODAY - REGISTERING INTEREST ONLY. Practice dates and game days to be released in January."}
         </p>
         {requiresPayment ? (
@@ -455,7 +457,7 @@ export function RegistrationForm({
               src="/images/hero-soccer-k2.png"
               alt={
                 requiresPayment
-                  ? "2nd through 4th grade children and 5th grade boys playing soccer"
+                  ? "2nd through 4th grade, 5th grade boys, and 5th grade girls playing soccer"
                   : "Kindergarten through 6th grade children playing soccer"
               }
               fill
@@ -920,11 +922,19 @@ function PlayersStep({
                   availability={availability}
                   error={errors[`players.${i}.sessionId`]}
                   onChange={(sessionId) => {
-                    // The session sets both grade and gender.
                     const session = winterSessionById(sessionId);
                     onChange(i, "sessionId", sessionId);
-                    onChange(i, "grade", session?.grade ?? "");
                     onChange(i, "gender", session?.gender ?? "");
+                    if (!session) {
+                      onChange(i, "grade", "");
+                      return;
+                    }
+                    const allowed = winterSessionGrades(session);
+                    if (allowed.length === 1) {
+                      onChange(i, "grade", allowed[0]);
+                    } else if (!allowed.includes(player.grade)) {
+                      onChange(i, "grade", "");
+                    }
                   }}
                 />
               ) : null}
@@ -968,48 +978,77 @@ function PlayersStep({
                   onChange={(e) => onChange(i, "dateOfBirth", e.target.value)}
                 />
               </Field>
-              {capOn ? null : (
+              {capOn ? (
+                (() => {
+                  const session = winterSessionById(player.sessionId);
+                  if (!session || !winterSessionIsMultiGrade(session)) return null;
+                  const allowed = winterSessionGrades(session);
+                  return (
+                    <Field
+                      label={`Current grade (${season})`}
+                      id={`player-${i}-grade`}
+                      required
+                      error={errors[`players.${i}.grade`]}
+                      hint="This session includes both grades—choose the grade your player is in now."
+                    >
+                      <select
+                        id={`player-${i}-grade`}
+                        className={fieldClass}
+                        value={player.grade}
+                        onChange={(e) => onChange(i, "grade", e.target.value)}
+                      >
+                        <option value="">Select a grade</option>
+                        {allowed.map((g) => (
+                          <option key={g} value={g}>
+                            {g}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                  );
+                })()
+              ) : (
                 <>
-              <Field
-                label="Gender identity"
-                id={`player-${i}-gender`}
-                required
-                error={errors[`players.${i}.gender`]}
-              >
-                <select
-                  id={`player-${i}-gender`}
-                  className={fieldClass}
-                  value={player.gender}
-                  onChange={(e) => onChange(i, "gender", e.target.value)}
-                >
-                  <option value="">Select an option</option>
-                  {GENDERS.map((g) => (
-                    <option key={g} value={g}>
-                      {g}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field
-                label={`Current grade (${season})`}
-                id={`player-${i}-grade`}
-                required
-                error={errors[`players.${i}.grade`]}
-              >
-                <select
-                  id={`player-${i}-grade`}
-                  className={fieldClass}
-                  value={player.grade}
-                  onChange={(e) => onChange(i, "grade", e.target.value)}
-                >
-                  <option value="">Select an option</option>
-                  {grades.map((g) => (
-                    <option key={g} value={g}>
-                      {g}
-                    </option>
-                  ))}
-                </select>
-              </Field>
+                  <Field
+                    label="Gender identity"
+                    id={`player-${i}-gender`}
+                    required
+                    error={errors[`players.${i}.gender`]}
+                  >
+                    <select
+                      id={`player-${i}-gender`}
+                      className={fieldClass}
+                      value={player.gender}
+                      onChange={(e) => onChange(i, "gender", e.target.value)}
+                    >
+                      <option value="">Select an option</option>
+                      {GENDERS.map((g) => (
+                        <option key={g} value={g}>
+                          {g}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field
+                    label={`Current grade (${season})`}
+                    id={`player-${i}-grade`}
+                    required
+                    error={errors[`players.${i}.grade`]}
+                  >
+                    <select
+                      id={`player-${i}-grade`}
+                      className={fieldClass}
+                      value={player.grade}
+                      onChange={(e) => onChange(i, "grade", e.target.value)}
+                    >
+                      <option value="">Select an option</option>
+                      {grades.map((g) => (
+                        <option key={g} value={g}>
+                          {g}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
                 </>
               )}
               <Field
@@ -1430,7 +1469,7 @@ function SessionField({
         id={id}
         required
         error={error}
-        hint="The session sets your player’s grade and group. If a session shows Waitlist available, your player joins the free waitlist and is not charged."
+        hint="The session sets your player’s group and gender. Combined-grade sessions ask for grade next. Waitlist available means a free waitlist and no charge."
       >
         <select
           id={id}
