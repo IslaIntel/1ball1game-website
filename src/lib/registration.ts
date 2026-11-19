@@ -1,6 +1,6 @@
 import { WINTER_SEASON } from "@/lib/registration-status";
 import { WINTER_CAP_ENABLED } from "@/lib/winter-capacity-config";
-import { winterSessionById } from "@/lib/winter-streetball";
+import { winterSessionById, winterSessionMatchesPlayer } from "@/lib/winter-streetball";
 /** Winter Indoor Streetball 2026, $175 per player. Checkout uses the Stripe product price. */
 export const FEE_CENTS = 17500;
 export const MAX_PLAYERS = 6;
@@ -356,7 +356,10 @@ const WINTER_WAIVER_WORDING: [string, string][] = [
     "and my school’s PTA Soccer Club to utilize photographs or video recordings taken during recreational matches, practices, and events.",
     "to utilize photographs or video recordings taken during Winter Streetball sessions and events.",
   ],
-  ["Kindergarten through 6th Grade children.", "2nd through 4th Grade children, and 5th grade boys."],
+  [
+    "Kindergarten through 6th Grade children.",
+    "2nd through 4th Grade children, 5th grade boys, and 5th grade girls.",
+  ],
   ["our participants and volunteer staff,", "our participants and coaching staff,"],
   ["regarding sideline misconduct.", "regarding spectator misconduct."],
   [
@@ -459,8 +462,11 @@ export function validateStep(
       if (WINTER_CAP_ENABLED && data.season === WINTER_SEASON) {
         const session = winterSessionById(player.sessionId);
         if (!session) errors[`players.${i}.sessionId`] = "Choose a weekly session.";
-        else if (player.grade && session.grade !== player.grade)
-          errors[`players.${i}.sessionId`] = "Choose a session for this player’s grade.";
+        else if (!winterSessionMatchesPlayer(session, player))
+          errors[`players.${i}.sessionId`] =
+            "Choose a session that matches this player’s grade and gender.";
+        else if (!player.grade)
+          errors[`players.${i}.grade`] = "Choose a grade.";
       }
     });
   }

@@ -7,7 +7,10 @@ export const WINTER_STREETBALL = {
   intro:
     "Winter Streetball at Lemon Road provides a fast-paced, indoor free-play environment designed to encourage creativity, quick decision-making, and confidence on the ball. Structured around small-sided games in the gym, the program allows players to compete and experiment naturally away from the pressure of regular league play. Professional coaches oversee every session, using the flow of the games to guide technical development and keep the environment fun and competitive.",
   details: [
-    { label: "Eligible players", value: "2nd, 3rd, and 4th graders, and 5th grade boys" },
+    {
+      label: "Eligible players",
+      value: "2nd, 3rd, and 4th graders, 5th grade boys, and 5th grade girls",
+    },
     {
       label: "Session format",
       value:
@@ -27,7 +30,10 @@ export type WinterSession = {
   day: string;
   time: string;
   group: string;
+  /** Primary grade for single-grade sessions; combined sessions list all grades in `grades`. */
   grade: string;
+  /** When set, players in any listed grade (and matching gender) may join this session. */
+  grades?: readonly string[];
   gender: string;
 };
 
@@ -42,7 +48,15 @@ export const WINTER_SCHEDULE: { day: string; sessions: WinterSession[] }[] = [
   {
     day: "Wednesday",
     sessions: [
-      { id: "winter-2026-wed-1700-4g", day: "Wednesday", time: "5–6 pm", group: "4th grade girls", grade: "4th Grade", gender: "Female" },
+      {
+        id: "winter-2026-wed-1700-4g",
+        day: "Wednesday",
+        time: "5–6 pm",
+        group: "4th and 5th grade girls",
+        grade: "4th Grade",
+        grades: ["4th Grade", "5th Grade"],
+        gender: "Female",
+      },
       { id: "winter-2026-wed-1800-4b", day: "Wednesday", time: "6–7 pm", group: "4th grade boys", grade: "4th Grade", gender: "Male" },
     ],
   },
@@ -62,9 +76,26 @@ export function winterSessionById(id: string | undefined) {
   return WINTER_SESSIONS.find((s) => s.id === id) ?? null;
 }
 
+export function winterSessionGrades(session: WinterSession): readonly string[] {
+  return session.grades ?? [session.grade];
+}
+
+export function winterSessionIsMultiGrade(session: WinterSession) {
+  return winterSessionGrades(session).length > 1;
+}
+
+export function winterSessionMatchesPlayer(
+  session: WinterSession,
+  player: Pick<PlayerInfo, "grade" | "gender">,
+) {
+  if (player.gender && session.gender !== player.gender) return false;
+  if (!player.grade) return true;
+  return winterSessionGrades(session).includes(player.grade);
+}
+
 /** Sessions a player in this grade can join (both groups for that grade). */
 export function winterSessionsForGrade(grade: string) {
-  return WINTER_SESSIONS.filter((s) => s.grade === grade);
+  return WINTER_SESSIONS.filter((s) => winterSessionGrades(s).includes(grade));
 }
 
 /**
@@ -77,7 +108,7 @@ export function winterSessionFor(
   const picked = winterSessionById(player.sessionId);
   if (picked) return picked;
   return (
-    WINTER_SESSIONS.find((s) => s.grade === player.grade && s.gender === player.gender) ?? null
+    WINTER_SESSIONS.find((s) => winterSessionMatchesPlayer(s, player)) ?? null
   );
 }
 

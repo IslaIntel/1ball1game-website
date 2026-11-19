@@ -38,7 +38,7 @@ var LOCK_WAIT_MS = 20000;
 var SESSIONS = [
   { id: 'winter-2026-mon-1700-2g', day: 'Monday', time: '5–6 pm', group: '5th grade boys' },
   { id: 'winter-2026-mon-1800-2b', day: 'Monday', time: '6–7 pm', group: '2nd grade boys' },
-  { id: 'winter-2026-wed-1700-4g', day: 'Wednesday', time: '5–6 pm', group: '4th grade girls' },
+  { id: 'winter-2026-wed-1700-4g', day: 'Wednesday', time: '5–6 pm', group: '4th and 5th grade girls' },
   { id: 'winter-2026-wed-1800-4b', day: 'Wednesday', time: '6–7 pm', group: '4th grade boys' },
   { id: 'winter-2026-thu-1700-3g', day: 'Thursday', time: '5–6 pm', group: '3rd grade girls' },
   { id: 'winter-2026-thu-1800-3b', day: 'Thursday', time: '6–7 pm', group: '3rd grade boys' },
